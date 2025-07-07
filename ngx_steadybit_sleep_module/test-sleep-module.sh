@@ -250,8 +250,12 @@ test_endpoint() {
         echo "✅ Test passed! Average duration ($avg_duration ms) is at least 80% of expected time ($expected_time ms)"
     else
         echo "❌ Test failed! Average duration ($avg_duration ms) is less than 80% of expected time ($expected_time ms)"
+        FAILED=1
     fi
 }
+
+# Track overall test status
+FAILED=0
 
 # Run tests
 echo ""
@@ -281,3 +285,11 @@ echo "Test directory: $TEST_DIR"
 echo "You can review the logs at:"
 echo "- Access log: $TEST_DIR/nginx/logs/access.log"
 echo "- Error log: $TEST_DIR/nginx/logs/error.log"
+
+# Exit with proper code for CI
+if [ $FAILED -eq 0 ]; then
+    echo "All tests passed."
+else
+    echo "Some tests failed."
+fi
+exit $FAILED
