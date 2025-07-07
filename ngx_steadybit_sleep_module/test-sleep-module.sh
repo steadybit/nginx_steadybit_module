@@ -168,19 +168,19 @@ http {
 
         # Test with 100ms sleep
         location = /sleep-100ms {
-            sleep_ms 100;
+            sb_sleep_ms 100;
             proxy_pass http://localhost:9000/;
         }
 
         # Test with 500ms sleep
         location = /sleep-500ms {
-            sleep_ms 500;
+            sb_sleep_ms 500;
             proxy_pass http://localhost:9000/;
         }
 
         # Test with 1s sleep
         location = /sleep-1s {
-            sleep_ms 1000;
+            sb_sleep_ms 1000;
             proxy_pass http://localhost:9000/;
         }
     }

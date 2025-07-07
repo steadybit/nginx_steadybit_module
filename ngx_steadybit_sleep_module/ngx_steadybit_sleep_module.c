@@ -26,7 +26,7 @@
  static void ngx_http_sleep_wake_handler(ngx_event_t *ev);
 
  static ngx_command_t ngx_http_sleep_commands[] = {
-     { ngx_string("sleep_ms"),
+     { ngx_string("sb_sleep_ms"),
        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
        ngx_http_sleep_set,
        NGX_HTTP_LOC_CONF_OFFSET,
@@ -168,7 +168,7 @@
     sleep_time = ngx_atoi(val.data, val.len);
     if (sleep_time == NGX_ERROR || sleep_time < 0) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "invalid sleep_ms value \"%V\"", &val);
+                      "invalid sb_sleep_ms value \"%V\"", &val);
         return NGX_DECLINED;
     }
 
