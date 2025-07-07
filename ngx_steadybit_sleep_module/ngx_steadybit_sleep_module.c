@@ -35,7 +35,7 @@
      ngx_null_command
  };
 
- static ngx_http_module_t ngx_http_sleep_module_ctx = {
+ static ngx_http_module_t ngx_steadybit_sleep_module_ctx = {
      NULL,                          /* preconfiguration */
      ngx_http_sleep_init,           /* postconfiguration */
      NULL,                          /* create main configuration */
@@ -46,9 +46,9 @@
      ngx_http_sleep_merge_loc_conf  /* merge location configuration */
  };
 
- ngx_module_t ngx_http_sleep_module = {
+ ngx_module_t ngx_steadybit_sleep_module = {
      NGX_MODULE_V1,
-     &ngx_http_sleep_module_ctx,    /* module context */
+     &ngx_steadybit_sleep_module_ctx,    /* module context */
      ngx_http_sleep_commands,       /* module directives */
      NGX_HTTP_MODULE,               /* module type */
      NULL,                          /* init master */
@@ -146,13 +146,13 @@
      ngx_int_t                   sleep_time;
      ngx_http_sleep_ctx_t       *ctx;
 
-     slcf = ngx_http_get_module_loc_conf(r, ngx_http_sleep_module);
+     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
 
      if (slcf->sleep_ms == NULL) {
          return NGX_DECLINED;
      }
 
-    ctx = ngx_http_get_module_ctx(r, ngx_http_sleep_module);
+    ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module);
     if (ctx != NULL) {
         return NGX_DECLINED;
     }
@@ -181,7 +181,7 @@
         return NGX_ERROR;
     }
     ctx->request = r;
-    ngx_http_set_ctx(r, ctx, ngx_http_sleep_module);
+    ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
 
     ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
                   "sleeping (async) for %i ms", sleep_time);
