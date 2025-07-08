@@ -1,4 +1,4 @@
 FROM nginx/nginx-ingress:5.0.0-ubi
 
 # Copy the built module from the build context
-COPY dist/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
+COPY --chown=101:0 dist/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
