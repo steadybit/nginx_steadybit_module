@@ -7,58 +7,29 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  build-and-publish:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nginx-version: ['1.27.4']
+        nginx_ingress_tag: ['5.0.0-ubi']
       fail-fast: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install build and test dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential wget libpcre2-dev zlib1g-dev libssl-dev curl bc
 
       - name: Run module tests
         run: |
           cd ngx_steadybit_sleep_module
           bash test-sleep-module.sh
 
-      - name: Build module with Makefile
+      - name: Build in Docker
         run: |
-          make NGINX_VERSION=${{ matrix.nginx-version }}
-
-      - name: Upload module artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ngx_steadybit_sleep_module-nginx-${{ matrix.nginx-version }}.so
-          path: dist/ngx_steadybit_sleep_module.so
-
-  publish:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
-    strategy:
-      matrix:
-        nginx-version: ['1.27.4']
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download module artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ngx_steadybit_sleep_module-nginx-${{ matrix.nginx-version }}.so
-          path: dist/
-
-      - name: Build runtime Docker image
-        run: |
-          docker build -f Dockerfile.runtime -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-${{ matrix.nginx-version }} .
+          docker build \
+            --build-arg NGINX_INGRESS_TAG=${{ matrix.nginx_ingress_tag }} \
+            -f Dockerfile.runtime \
+            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-${{ matrix.nginx_ingress_tag }} .
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -69,34 +40,4 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-${{ matrix.nginx-version }}
-
-  publish-latest:
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download module artifact (latest nginx)
-        uses: actions/download-artifact@v4
-        with:
-          name: ngx_steadybit_sleep_module-nginx-1.27.4.so
-          path: dist/
-
-      - name: Build runtime Docker image (latest tag)
-        run: |
-          docker build -f Dockerfile.runtime -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }} .
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push Docker image (latest tag)
-        run: |
-          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-${{ matrix.nginx_ingress_tag }}

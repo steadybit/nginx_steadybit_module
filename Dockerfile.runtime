@@ -1,4 +1,28 @@
-FROM nginx/nginx-ingress:5.0.0-ubi
+ARG NGINX_INGRESS_TAG=5.0.0-ubi
+FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
 
-# Copy the built module from the build context
-COPY --chown=101:0 dist/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
+USER root
+RUN microdnf install -y gcc make wget tar pcre2-devel zlib-devel openssl-devel
+
+# Get NGINX version, download, extract, copy module, build
+COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
+COPY ngx_steadybit_sleep_module/config /tmp/
+
+RUN set -eux; \
+    NGINX_VERSION="$(nginx -v 2>&1 | grep -o '[0-9.]*')"; \
+    cd /tmp; \
+    wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz; \
+    tar -xzf nginx-${NGINX_VERSION}.tar.gz; \
+    cp ngx_steadybit_sleep_module.c config nginx-${NGINX_VERSION}/src/http/modules/; \
+    cd nginx-${NGINX_VERSION}; \
+    ./configure --with-compat --add-dynamic-module=src/http/modules; \
+    make modules; \
+    cp objs/ngx_steadybit_sleep_module.so /tmp/
+
+# Stage 2: Build the runtime image
+FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG}
+
+COPY --from=builder --chown=101:0 /tmp/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
+
+USER root
+RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf
