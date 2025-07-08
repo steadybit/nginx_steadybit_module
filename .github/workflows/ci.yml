@@ -1,4 +1,4 @@
-name: Build and Publish NGINX Sleep Module
+name: Build, Test, and Publish NGINX Sleep Module
 
 on:
   push:
@@ -6,9 +6,23 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  DEFAULT_NGINX_INGRESS_TAG: 5.0.0-ubi
+
 jobs:
-  build-and-publish:
+  test-module:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run module tests
+        run: |
+          cd ngx_steadybit_sleep_module
+          bash test-sleep-module.sh
+
+  build-test-publish:
+    runs-on: ubuntu-latest
+    needs: test-module
     strategy:
       matrix:
         nginx_ingress_tag: ['5.0.0-ubi']
@@ -17,12 +31,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      - name: Run module tests
-        run: |
-          cd ngx_steadybit_sleep_module
-          bash test-sleep-module.sh
 
       - name: Build in Docker
         run: |
@@ -38,6 +46,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push Docker image
+      - name: Push Docker image (matrix tag)
         run: |
           docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-${{ matrix.nginx_ingress_tag }}
+
+      - name: Tag and push default image for main branch
+        if: github.ref == 'refs/heads/main' && matrix.nginx_ingress_tag == '5.0.0-ubi'
+        run: |
+          docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-5.0.0-ubi ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
