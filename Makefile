@@ -2,7 +2,7 @@
 
 BUILD_DIR = build
 DIST_DIR = dist
-NGINX_VERSION ?= 1.27.5
+NGINX_VERSION ?= 1.27.4
 NGINX_TARBALL = $(BUILD_DIR)/nginx-$(NGINX_VERSION).tar.gz
 NGINX_SRC_DIR = $(BUILD_DIR)/nginx-$(NGINX_VERSION)
 MODULE_DIR = ngx_steadybit_sleep_module
