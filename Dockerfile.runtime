@@ -4,4 +4,4 @@ FROM nginx/nginx-ingress:5.0.0-ubi
 COPY dist/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
 
 # Load the module at the top of nginx.conf (load_module must be in main context)
-RUN sed -i '1i load_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf
+RUN echo "load_module modules/ngx_steadybit_sleep_module.so;" > /etc/nginx/conf.d/load_steadybit_module.conf
