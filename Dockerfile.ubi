@@ -1,17 +1,11 @@
-ARG BASE_IMAGE
-ARG BASE_TAG
-ARG MODULE_DIR
-ARG CONF_PATH
-
+# Stage 1: Build im UBI-Image
+ARG BASE_IMAGE=nginx/nginx-ingress
+ARG BASE_TAG=5.0.0-ubi
 FROM ${BASE_IMAGE}:${BASE_TAG} AS builder
 
 USER root
-# Install build tools for both UBI and Debian/Alpine
-RUN (apt-get update && apt-get install -y gcc make wget tar libpcre2-dev zlib1g-dev libssl-dev) || \
-    (microdnf install -y gcc make wget tar pcre2-devel zlib-devel openssl-devel) || \
-    (apk add --no-cache gcc make wget tar pcre2-dev zlib-dev openssl-dev)
+RUN microdnf install -y gcc make wget tar pcre2-devel zlib-devel openssl-devel
 
-# Get NGINX version, download, extract, copy module, build
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
 COPY ngx_steadybit_sleep_module/config /tmp/
 
@@ -27,8 +21,6 @@ RUN set -eux; \
     cp objs/ngx_steadybit_sleep_module.so /tmp/
 
 FROM ${BASE_IMAGE}:${BASE_TAG}
-ARG MODULE_DIR
-ARG CONF_PATH
-COPY --from=builder /tmp/ngx_steadybit_sleep_module.so ${MODULE_DIR}
+COPY --from=builder --chown=101:0 /tmp/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
 USER root
-RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' ${CONF_PATH} || true
+RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf

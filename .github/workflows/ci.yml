@@ -20,52 +20,46 @@ jobs:
           cd ngx_steadybit_sleep_module
           bash test-sleep-module.sh
 
-  build-test-publish:
+  build-ubi:
     runs-on: ubuntu-latest
     needs: test-module
     strategy:
       matrix:
-        target:
-          - name: nginx-ingress
-            image: nginx/nginx-ingress
-            tag: 5.0.0-ubi
-            conf_path: /etc/nginx/nginx.conf
-            module_dir: /usr/lib/nginx/modules/
-          - name: community-ingress
-            image: registry.k8s.io/ingress-nginx/controller
-            tag: v1.13.0
-            conf_path: /etc/nginx/nginx.conf
-            module_dir: /etc/nginx/modules/
-      fail-fast: false
-
+        tag: [5.0.0-ubi, ...] # ggf. weitere UBI-Tags
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      - name: Build in Docker
+      - name: Build UBI image
         run: |
           docker build \
-            --build-arg BASE_IMAGE=${{ matrix.target.image }} \
-            --build-arg BASE_TAG=${{ matrix.target.tag }} \
-            --build-arg MODULE_DIR=${{ matrix.target.module_dir }} \
-            --build-arg CONF_PATH=${{ matrix.target.conf_path }} \
-            -f Dockerfile.runtime \
-            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-${{ matrix.target.name }}-${{ matrix.target.tag }} .
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push Docker image (matrix tag)
+            --build-arg BASE_TAG=${{ matrix.tag }} \
+            -f Dockerfile.ubi \
+            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:ubi-${{ matrix.tag }} .
+      - name: Push UBI image
         run: |
-          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-${{ matrix.target.tag }}
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:ubi-${{ matrix.tag }}
 
       - name: Tag and push default image for main branch
-        if: github.ref == 'refs/heads/main' && matrix.target.tag == '5.0.0-ubi'
+        if: github.ref == 'refs/heads/main' && matrix.nginx_ingress_tag == '5.0.0-ubi'
         run: |
           docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-nginx-ingress-5.0.0-ubi ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
           docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
+
+
+  build-community:
+    runs-on: ubuntu-latest
+    needs: test-module
+    strategy:
+      matrix:
+        tag: [v1.13.0, ...] # ggf. weitere Community-Tags
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Build Community image
+        run: |
+          docker build \
+            -f Dockerfile.community \
+            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:community-${{ matrix.tag }} .
+      - name: Push Community image
+        run: |
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:community-${{ matrix.tag }}
