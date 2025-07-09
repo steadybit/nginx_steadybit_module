@@ -2,6 +2,8 @@
 ARG BASE_TAG=v1.13.0
 FROM debian:bullseye-slim AS builder
 
+ARG BASE_TAG
+
 RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev nginx curl
 
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
