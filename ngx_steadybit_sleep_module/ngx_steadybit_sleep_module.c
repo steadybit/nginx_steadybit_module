@@ -46,6 +46,7 @@
  static char *ngx_http_sleep_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
  static ngx_int_t ngx_http_sleep_handler(ngx_http_request_t *r);
  static void ngx_http_sleep_wake_handler(ngx_event_t *ev);
+ static void ngx_http_sleep_cleanup_handler(void *data);
 
  /**
   * Module Commands Configuration
@@ -270,6 +271,14 @@
     ctx->request = r;
     ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
 
+    /* Register cleanup handler to prevent memory leaks if request terminates early */
+    ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
+    if (cln == NULL) {
+        return NGX_ERROR;
+    }
+    cln->handler = ngx_http_sleep_cleanup_handler;
+    cln->data = ctx;
+
     ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
                   "sleeping (async) for %i ms", sleep_time);
 
@@ -303,9 +312,39 @@
      ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
                    "finished sleeping (async)");
 
+     /* Clean up the timer event to prevent memory issues */
+     if (ctx->sleep_event.timer_set) {
+         ngx_del_timer(&ctx->sleep_event);
+     }
+
      /* Resume normal HTTP request processing from where we left off */
      ngx_http_core_run_phases(r);
 
      /* Decrement reference count (matches increment in sleep_handler) */
      r->main->count--;
+ }
+
+ /**
+  * Cleanup Handler
+  *
+  * This function is called to clean up the sleep context if the request is
+  * terminated before the sleep duration expires. It prevents memory leaks
+  * by ensuring that timers are cancelled and reference counts are balanced.
+  */
+ static void ngx_http_sleep_cleanup_handler(void *data)
+ {
+     ngx_http_sleep_ctx_t *ctx = data;
+
+     ngx_log_error(NGX_LOG_NOTICE, ctx->request->connection->log, 0,
+                   "request terminated, cleaning up sleep context");
+
+     /* If the timer is still set, cancel it */
+     if (ctx->sleep_event.timer_set) {
+         ngx_del_timer(&ctx->sleep_event);
+     }
+
+     /* Decrement the request's reference count */
+     ctx->request->main->count--;
+
+     /* Note: Context memory is automatically freed when request pool is destroyed */
  }
