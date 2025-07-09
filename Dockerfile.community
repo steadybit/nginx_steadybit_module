@@ -1,7 +1,8 @@
 # Stage 1: Build mit Debian
+ARG BASE_TAG=v1.13.0
 FROM debian:bullseye-slim AS builder
 
-RUN apt-get update && apt-get install -y gcc make wget tar libpcre2-dev zlib1g-dev libssl-dev nginx
+RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev nginx
 
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
 COPY ngx_steadybit_sleep_module/config /tmp/
@@ -18,7 +19,7 @@ RUN set -eux; \
     cp objs/ngx_steadybit_sleep_module.so /tmp/
 
 # Stage 2: Community Ingress
-FROM registry.k8s.io/ingress-nginx/controller:v1.13.0
+FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
 COPY --from=builder /tmp/ngx_steadybit_sleep_module.so /etc/nginx/modules/
 USER root
 RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf || true

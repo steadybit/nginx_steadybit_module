@@ -32,7 +32,7 @@ jobs:
       - name: Build UBI image
         run: |
           docker build \
-            --build-arg BASE_TAG=${{ matrix.tag }} \
+            --build-arg NGINX_INGRESS_TAG=${{ matrix.tag }} \
             -f Dockerfile.ubi \
             -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:ubi-${{ matrix.tag }} .
       - name: Push UBI image
@@ -58,6 +58,7 @@ jobs:
       - name: Build Community image
         run: |
           docker build \
+            --build-arg BASE_TAG=${{ matrix.tag }} \
             -f Dockerfile.community \
             -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:community-${{ matrix.tag }} .
       - name: Push Community image
