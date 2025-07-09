@@ -53,9 +53,9 @@ jobs:
           docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }}
 
       - name: Tag and push default image for main branch
-        if: github.ref == 'refs/heads/main' && matrix.nginx_ingress_tag == '5.0.0-ubi'
+        if: github.ref == 'refs/heads/main' && matrix.tag == '5.0.0-ubi'
         run: |
-          docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-5.0.0-ubi ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
+          docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }} ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
           docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
 
 
