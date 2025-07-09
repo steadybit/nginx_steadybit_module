@@ -21,5 +21,4 @@ RUN set -eux; \
 # Stage 2: Community Ingress
 FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
 COPY --from=builder /tmp/ngx_steadybit_sleep_module.so /etc/nginx/modules/
-USER root
-RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf || true
+
