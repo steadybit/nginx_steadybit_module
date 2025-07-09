@@ -7,6 +7,23 @@ on:
 
 jobs:
   ghcr-cleanup:
-    uses: steadybit/extension-kit/.github/workflows/reusable-ghcr-cleanup.yml@main
-    secrets:
-      token: ${{ secrets.GHCR_CLEANUP_PAT }}
+    name: Delete old container images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: [ingress-nginx-controller-with-steadybit-module, nginx-ingress-with-steadybit-module]
+    steps:
+      - uses: vlaurin/action-ghcr-prune@v0.5.0
+        with:
+          token: ${{ secrets.GHCR_CLEANUP_PAT }}
+          organization: steadybit
+          container: ${{ matrix.container }}
+          keep-younger-than: 30
+          keep-last: 10
+          keep-tags: |
+            develop
+            main
+            latest
+          keep-tags-regexes: "^v?(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$" #all semver
+          prune-tags-regexes: "^[a-f0-9]{40}$" #all commit hashes
+          prune-untagged: true
