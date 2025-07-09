@@ -1,7 +1,7 @@
 # Stage 0: Get nginx binary from controller image
 ARG BASE_TAG=v1.13.0
 ARG NGINX_VERSION=1.27.1
-FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} as nginxsrc
+FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} AS nginxsrc
 
 # Stage 1: Build with Debian
 FROM debian:bullseye-slim AS builder
