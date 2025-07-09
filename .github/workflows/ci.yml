@@ -25,7 +25,7 @@ jobs:
     needs: test-module
     strategy:
       matrix:
-        tag: [5.0.0-ubi, ...] # ggf. weitere UBI-Tags
+        tag: [ 5.0.0-ubi ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,7 +51,7 @@ jobs:
     needs: test-module
     strategy:
       matrix:
-        tag: [v1.13.0, ...] # ggf. weitere Community-Tags
+        tag: [ v1.13.0 ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
