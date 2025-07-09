@@ -8,16 +8,12 @@ FROM debian:bullseye-slim AS builder
 ARG BASE_TAG
 ARG NGINX_VERSION
 
-RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev curl file
+RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev curl
 
 COPY --from=nginxsrc /usr/local/nginx/sbin/nginx /tmp/controller-nginx
 
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
 COPY ngx_steadybit_sleep_module/config /tmp/
-
-RUN /tmp/controller-nginx -v || true
-RUN /tmp/controller-nginx -V || true
-RUN file /tmp/controller-nginx
 
 RUN set -eux; \
     cd /tmp; \
