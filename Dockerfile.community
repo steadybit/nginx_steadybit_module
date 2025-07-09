@@ -1,16 +1,25 @@
-# Stage 1: Build mit Debian
+# Stage 0: Get nginx binary from controller image
 ARG BASE_TAG=v1.13.0
+ARG NGINX_VERSION=1.27.1
+FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} as nginxsrc
+
+# Stage 1: Build with Debian
 FROM debian:bullseye-slim AS builder
-
 ARG BASE_TAG
+ARG NGINX_VERSION
 
-RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev nginx curl
+RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev curl file
+
+COPY --from=nginxsrc /usr/local/nginx/sbin/nginx /tmp/controller-nginx
 
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
 COPY ngx_steadybit_sleep_module/config /tmp/
 
+RUN /tmp/controller-nginx -v || true
+RUN /tmp/controller-nginx -V || true
+RUN file /tmp/controller-nginx
+
 RUN set -eux; \
-    NGINX_VERSION=$(nginx -v 2>&1 | grep -o '[0-9.]*'); \
     cd /tmp; \
     wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz; \
     tar -xzf nginx-${NGINX_VERSION}.tar.gz; \
@@ -19,7 +28,6 @@ RUN set -eux; \
     ./configure --with-compat --add-dynamic-module=src/http/modules; \
     make modules; \
     cp objs/ngx_steadybit_sleep_module.so /tmp/; \
-    # Download and patch nginx.tmpl \
     curl -fsSL https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${BASE_TAG}/rootfs/etc/nginx/template/nginx.tmpl -o /tmp/nginx.tmpl; \
     echo 'load_module /etc/nginx/modules/ngx_steadybit_sleep_module.so;' | cat - /tmp/nginx.tmpl > /tmp/nginx.tmpl.patched
 
@@ -27,7 +35,5 @@ RUN set -eux; \
 FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
 COPY --from=builder /tmp/ngx_steadybit_sleep_module.so /etc/nginx/modules/
 COPY --from=builder /tmp/nginx.tmpl.patched /etc/nginx/template/nginx.tmpl
-
-# Set the template path (if not already default)
 ENV NGINX_TEMPLATE_PATH=/etc/nginx/template/nginx.tmpl
 
