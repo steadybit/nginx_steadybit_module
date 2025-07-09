@@ -18,8 +18,8 @@ jobs:
           token: ${{ secrets.GHCR_CLEANUP_PAT }}
           organization: steadybit
           container: ${{ matrix.container }}
-          keep-younger-than: 1
-          keep-last: 2
+          keep-younger-than: 30
+          keep-last: 10
           keep-tags: |
             develop
             main
