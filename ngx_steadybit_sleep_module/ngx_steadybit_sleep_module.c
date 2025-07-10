@@ -12,10 +12,10 @@
  * ensuring that worker processes don't block while waiting.
  */
 
- #include <ngx_config.h>
- #include <ngx_core.h>
- #include <ngx_http.h>
- #include <ngx_http_core_module.h>
+ #include <ngx_config.h> // NGINX core configuration header
+ #include <ngx_core.h>   // NGINX core definitions
+ #include <ngx_http.h>   // NGINX HTTP module definitions
+ #include <ngx_http_core_module.h> // NGINX HTTP core module definitions
 
  /**
   * Location Configuration Structure
@@ -24,7 +24,7 @@
   * The sleep_ms field can contain complex values (variables, expressions).
   */
  typedef struct {
-     ngx_http_complex_value_t  *sleep_ms;  /* Sleep duration in milliseconds */
+     ngx_http_complex_value_t  *sleep_ms;  /* Sleep duration in milliseconds (can be a variable/expression) */
  } ngx_http_sleep_loc_conf_t;
 
  /**
@@ -40,13 +40,13 @@
  } ngx_http_sleep_ctx_t;
 
  /* Function prototypes - these functions implement the module's core functionality */
- static ngx_int_t ngx_http_sleep_init(ngx_conf_t *cf);
- static void *ngx_http_sleep_create_loc_conf(ngx_conf_t *cf);
- static char *ngx_http_sleep_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child);
- static char *ngx_http_sleep_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
- static ngx_int_t ngx_http_sleep_handler(ngx_http_request_t *r);
- static void ngx_http_sleep_wake_handler(ngx_event_t *ev);
- static void ngx_http_sleep_cleanup_handler(void *data);
+ static ngx_int_t ngx_http_sleep_init(ngx_conf_t *cf); // Module initialization function
+ static void *ngx_http_sleep_create_loc_conf(ngx_conf_t *cf); // Create location config
+ static char *ngx_http_sleep_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child); // Merge location config
+ static char *ngx_http_sleep_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf); // Parse sb_sleep_ms directive
+ static ngx_int_t ngx_http_sleep_handler(ngx_http_request_t *r); // Main request handler
+ static void ngx_http_sleep_wake_handler(ngx_event_t *ev); // Timer wake-up handler
+ static void ngx_http_sleep_cleanup_handler(void *data); // Cleanup handler
 
  /**
   * Module Commands Configuration
@@ -86,7 +86,7 @@
   * This is the primary module structure that nginx uses to identify and load the module.
   */
  ngx_module_t ngx_steadybit_sleep_module = {
-     NGX_MODULE_V1,
+     NGX_MODULE_V1, // Module version macro
      &ngx_steadybit_sleep_module_ctx,    /* module context */
      ngx_http_sleep_commands,       /* module directives */
      NGX_HTTP_MODULE,               /* module type */
@@ -97,7 +97,7 @@
      NULL,                          /* exit thread */
      NULL,                          /* exit process */
      NULL,                          /* exit master */
-     NGX_MODULE_V1_PADDING
+     NGX_MODULE_V1_PADDING          // Padding for module structure
  };
 
  /**
@@ -109,18 +109,18 @@
  static void *
  ngx_http_sleep_create_loc_conf(ngx_conf_t *cf)
  {
-     ngx_http_sleep_loc_conf_t  *conf;
+     ngx_http_sleep_loc_conf_t  *conf; // Pointer to location config struct
 
      /* Allocate memory for the configuration structure */
-     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_sleep_loc_conf_t));
-     if (conf == NULL) {
-         return NULL;
+     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_sleep_loc_conf_t)); // Allocate and zero memory
+     if (conf == NULL) { // Check allocation success
+         return NULL; // Return NULL on failure
      }
 
      /* Initialize sleep_ms to NULL (no sleep configured by default) */
-     conf->sleep_ms = NULL;
+     conf->sleep_ms = NULL; // No sleep by default
 
-     return conf;
+     return conf; // Return the allocated config
  }
 
  /**
@@ -137,10 +137,10 @@
 
      /* If child doesn't have sleep_ms configured, inherit from parent */
      if (conf->sleep_ms == NULL) {
-         conf->sleep_ms = prev->sleep_ms;
+         conf->sleep_ms = prev->sleep_ms; // Inherit sleep_ms from parent
      }
 
-     return NGX_CONF_OK;
+     return NGX_CONF_OK; // Return OK
  }
 
  /**
@@ -152,37 +152,37 @@
  static char *
  ngx_http_sleep_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
  {
-     ngx_http_sleep_loc_conf_t *slcf = conf;
-     ngx_str_t *value;
-     ngx_http_compile_complex_value_t ccv;
+     ngx_http_sleep_loc_conf_t *slcf = conf; // Cast conf to our config struct
+     ngx_str_t *value; // Pointer to directive arguments
+     ngx_http_compile_complex_value_t ccv; // Complex value compilation context
 
      /* Check if directive is already configured (prevent duplicates) */
      if (slcf->sleep_ms != NULL) {
-         return "is duplicate";
+         return "is duplicate"; // Error if already set
      }
 
      /* Get the directive arguments */
-     value = cf->args->elts;
+     value = cf->args->elts; // Get arguments array
 
      /* Allocate memory for the complex value structure */
-     slcf->sleep_ms = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t));
+     slcf->sleep_ms = ngx_palloc(cf->pool, sizeof(ngx_http_complex_value_t)); // Allocate memory
      if (slcf->sleep_ms == NULL) {
-         return NGX_CONF_ERROR;
+         return NGX_CONF_ERROR; // Error if allocation fails
      }
 
      /* Initialize complex value compilation context */
-     ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t));
+     ngx_memzero(&ccv, sizeof(ngx_http_compile_complex_value_t)); // Zero the struct
 
-     ccv.cf = cf;
+     ccv.cf = cf; // Set config pointer
      ccv.value = &value[1];           /* First argument (value[0] is directive name) */
-     ccv.complex_value = slcf->sleep_ms;
+     ccv.complex_value = slcf->sleep_ms; // Set output pointer
 
      /* Compile the complex value (handles variables, expressions, etc.) */
      if (ngx_http_compile_complex_value(&ccv) != NGX_OK) {
-         return NGX_CONF_ERROR;
+         return NGX_CONF_ERROR; // Error if compilation fails
      }
 
-     return NGX_CONF_OK;
+     return NGX_CONF_OK; // Success
  }
 
  /**
@@ -194,21 +194,21 @@
  static ngx_int_t
  ngx_http_sleep_init(ngx_conf_t *cf)
  {
-     ngx_http_handler_pt        *h;
-     ngx_http_core_main_conf_t  *cmcf;
+     ngx_http_handler_pt        *h; // Pointer to handler array element
+     ngx_http_core_main_conf_t  *cmcf; // Pointer to main HTTP config
 
      /* Get the main HTTP configuration */
-     cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
+     cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module); // Get main conf
 
      /* Register our handler in the ACCESS phase (before content generation) */
-     h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers);
+     h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers); // Add handler to phase
      if (h == NULL) {
-         return NGX_ERROR;
+         return NGX_ERROR; // Error if push fails
      }
 
-     *h = ngx_http_sleep_handler;
+     *h = ngx_http_sleep_handler; // Set our handler function
 
-     return NGX_OK;
+     return NGX_OK; // Success
  }
 
  /**
@@ -221,81 +221,81 @@
  static ngx_int_t
  ngx_http_sleep_handler(ngx_http_request_t *r)
  {
-     ngx_http_sleep_loc_conf_t  *slcf;
-     ngx_str_t                   val;
-     ngx_int_t                   sleep_time;
-     ngx_http_sleep_ctx_t       *ctx;
+     ngx_http_sleep_loc_conf_t  *slcf; // Pointer to location config
+     ngx_str_t                   val; // Holds evaluated sleep_ms value
+     ngx_int_t                   sleep_time; // Sleep duration in ms
+     ngx_http_sleep_ctx_t       *ctx; // Pointer to request context
 
      /* Get the location configuration for this request */
-     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
+     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module); // Get config
 
      /* If no sleep is configured for this location, continue normally */
      if (slcf->sleep_ms == NULL) {
-         return NGX_DECLINED;
+         return NGX_DECLINED; // No sleep, continue
      }
 
     /* Check if we already have a context (prevent re-processing) */
-    ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module);
+    ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module); // Get context
     if (ctx != NULL) {
-        return NGX_DECLINED;
+        return NGX_DECLINED; // Already processed, continue
     }
 
     /* Evaluate the complex value to get the actual sleep duration */
     if (ngx_http_complex_value(r, slcf->sleep_ms, &val) != NGX_OK) {
-        return NGX_ERROR;
+        return NGX_ERROR; // Error if evaluation fails
     }
 
     /* If the evaluated value is empty, no sleep needed */
     if (val.len == 0) {
-        return NGX_DECLINED;
+        return NGX_DECLINED; // No value, continue
     }
 
     /* Convert the string value to integer (milliseconds) */
-    sleep_time = ngx_atoi(val.data, val.len);
+    sleep_time = ngx_atoi(val.data, val.len); // Convert to int
     if (sleep_time == NGX_ERROR || sleep_time < 0) {
         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
-                      "invalid sb_sleep_ms value \"%V\"", &val);
-        return NGX_DECLINED;
+                      "invalid sb_sleep_ms value \"%V\"", &val); // Log error
+        return NGX_DECLINED; // Invalid value, continue
     }
 
     /* If sleep time is 0, no need to sleep */
     if (sleep_time == 0) {
-        return NGX_DECLINED;
+        return NGX_DECLINED; // No sleep, continue
     }
 
     /* Create and initialize request context for this sleep operation */
-    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_sleep_ctx_t));
+    ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_sleep_ctx_t)); // Allocate context
     if (ctx == NULL) {
-        return NGX_ERROR;
+        return NGX_ERROR; // Error if allocation fails
     }
-    ctx->request = r;
-    ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
+    ctx->request = r; // Store request pointer
+    ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module); // Set context for request
 
     /* Register cleanup handler to prevent memory leaks if request terminates early */
-    ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
+    ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0); // Add cleanup handler
     if (cln == NULL) {
-        return NGX_ERROR;
+        return NGX_ERROR; // Error if allocation fails
     }
-    cln->handler = ngx_http_sleep_cleanup_handler;
-    cln->data = ctx;
+    cln->handler = ngx_http_sleep_cleanup_handler; // Set cleanup function
+    cln->data = ctx; // Pass context to cleanup
 
     ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
-                  "sleeping (async) for %i ms", sleep_time);
+                  "sleeping (async) for %i ms", sleep_time); // Log sleep
 
     /* Initialize the timer event for asynchronous sleeping */
-    ngx_memzero(&ctx->sleep_event, sizeof(ngx_event_t));
+    ngx_memzero(&ctx->sleep_event, sizeof(ngx_event_t)); // Zero event struct
     ctx->sleep_event.handler = ngx_http_sleep_wake_handler; /* Callback when timer expires */
     ctx->sleep_event.data = ctx;                            /* Pass context to callback */
     ctx->sleep_event.log = r->connection->log;              /* Use request's log context */
 
     /* Start the timer - this is non-blocking */
-    ngx_add_timer(&ctx->sleep_event, (ngx_msec_t)sleep_time);
+    ngx_add_timer(&ctx->sleep_event, (ngx_msec_t)sleep_time); // Set timer
 
     /* Increment request reference count to prevent cleanup during sleep */
-    r->main->count++;
+    r->main->count++; // Prevent premature cleanup
 
     /* Return NGX_DONE to pause request processing until timer expires */
-    return NGX_DONE;
+    return NGX_DONE; // Pause processing
  }
 
  /**
@@ -310,18 +310,18 @@
      ngx_http_request_t *r = ctx->request;      /* Get request from context */
 
      ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
-                   "finished sleeping (async)");
+                   "finished sleeping (async)"); // Log wake-up
 
      /* Clean up the timer event to prevent memory issues */
      if (ctx->sleep_event.timer_set) {
-         ngx_del_timer(&ctx->sleep_event);
+         ngx_del_timer(&ctx->sleep_event); // Remove timer if set
      }
 
      /* Resume normal HTTP request processing from where we left off */
-     ngx_http_core_run_phases(r);
+     ngx_http_core_run_phases(r); // Continue processing
 
      /* Decrement reference count (matches increment in sleep_handler) */
-     r->main->count--;
+     r->main->count--; // Allow cleanup if needed
  }
 
  /**
@@ -333,18 +333,18 @@
   */
  static void ngx_http_sleep_cleanup_handler(void *data)
  {
-     ngx_http_sleep_ctx_t *ctx = data;
+     ngx_http_sleep_ctx_t *ctx = data; // Cast data to context
 
      ngx_log_error(NGX_LOG_NOTICE, ctx->request->connection->log, 0,
-                   "request terminated, cleaning up sleep context");
+                   "request terminated, cleaning up sleep context"); // Log cleanup
 
      /* If the timer is still set, cancel it */
      if (ctx->sleep_event.timer_set) {
-         ngx_del_timer(&ctx->sleep_event);
+         ngx_del_timer(&ctx->sleep_event); // Remove timer
      }
 
      /* Decrement the request's reference count */
-     ctx->request->main->count--;
+     ctx->request->main->count--; // Balance reference count
 
      /* Note: Context memory is automatically freed when request pool is destroyed */
  }
