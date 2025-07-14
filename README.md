@@ -23,9 +23,31 @@ make
 ```
 
 ### Using Docker (recommended for compatibility)
+
+Two example Dockerfiles are provided to demonstrate how to compile and use this module:
+
+#### Dockerfile.community
+Builds the module using the open-source NGINX base image. This is suitable for:
+- Development and testing environments
+- Open-source NGINX deployments
+- Community-based NGINX Ingress Controller
+
 ```sh
-docker build -f Dockerfile.runtime -t steadybit/nginx-sleep-module:latest .
+docker build -f Dockerfile.community -t steadybit/nginx-sleep-module:community .
 ```
+
+#### Dockerfile.ubi
+Builds the module using Red Hat Universal Base Image (UBI) with NGINX. This is suitable for:
+- Enterprise environments
+- Red Hat-based deployments
+- OpenShift deployments
+- NGINX Ingress Controller based on UBI images (e.g., `nginx/nginx-ingress:5.0.0-ubi`)
+
+```sh
+docker build -f Dockerfile.ubi -t steadybit/nginx-sleep-module:ubi .
+```
+
+**Note**: These Dockerfiles serve as examples showing how to compile and integrate the module into different NGINX base images. You can adapt them to your specific NGINX Ingress Controller image and requirements.
 
 ## Usage
 
@@ -41,6 +63,50 @@ docker build -f Dockerfile.runtime -t steadybit/nginx-sleep-module:latest .
        proxy_pass http://backend;
    }
    ```
+
+## NGINX Ingress Controller Usage
+
+When using this module with NGINX Ingress Controller, additional configuration is required:
+
+### 1. Enable Snippets
+Snippets must be enabled on your NGINX Ingress Controller:
+```bash
+# Method 1: Controller arguments
+--enable-snippets
+
+# Method 2: ConfigMap option
+kubectl patch configmap <ingress-configmap> -n <namespace> --type=merge -p '{"data":{"enable-snippets":"true"}}'
+
+# Method 3: NGINX Ingress Operator
+kubectl patch NginxIngress nginxingress-controller -n nginx-ingress --type=merge -p '{"spec":{"controller":{"enableSnippets":true}}}'
+```
+
+### 2. Load Module via ConfigMap
+Load the module using the ConfigMap approach:
+```bash
+kubectl patch configmap nginxingress-controller-nginx-ingress \
+  -n nginx-ingress \
+  --type=merge \
+  -p '{
+    "data": {
+      "main-snippets": "load_module /usr/lib/nginx/modules/ngx_steadybit_sleep_module.so;"
+    }
+  }'
+```
+
+### 3. Use in Ingress Annotations
+The module can then be used via configuration snippets in Ingress resources:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: example-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      sb_sleep_ms 500;
+spec:
+  # ... ingress spec
+```
 
 ## Configuration Example
 ```nginx
