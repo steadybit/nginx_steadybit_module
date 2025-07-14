@@ -37,6 +37,7 @@
      ngx_event_t  sleep_event;    /* Timer event for waking up after sleep */
      ngx_http_request_t *request; /* Reference to the HTTP request */
      ngx_flag_t  waiting;         /* Flag indicating if request is currently waiting */
+     ngx_flag_t  cleaned_up;      /* Flag indicating if context has been cleaned up */
  } ngx_http_sleep_ctx_t;
 
  /* Function prototypes - these functions implement the module's core functionality */
@@ -269,6 +270,7 @@
         return NGX_ERROR; // Error if allocation fails
     }
     ctx->request = r; // Store request pointer
+    ctx->cleaned_up = 0; // Initialize cleanup flag
     ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module); // Set context for request
 
     /* Register cleanup handler to prevent memory leaks if request terminates early */
@@ -307,16 +309,23 @@
  static void ngx_http_sleep_wake_handler(ngx_event_t *ev)
  {
      ngx_http_sleep_ctx_t *ctx = ev->data;      /* Get context from event data */
-     ngx_http_request_t *r = ctx->request;      /* Get request from context */
+     ngx_http_request_t *r;
+
+     /* Add null checks for safety */
+     if (ctx == NULL) {
+         return;
+     }
+
+     r = ctx->request;
+     if (r == NULL) {
+         return;
+     }
 
      ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
                    "finished sleeping (async)"); // Log wake-up
 
-     /* Clean up the timer event to prevent memory issues */
-     if (ctx->sleep_event.timer_set) {
-         ngx_del_timer(&ctx->sleep_event); // Remove timer if set
-     }
-
+     /* Timer has already fired, so no need to delete it */
+     
      /* Resume normal HTTP request processing from where we left off */
      ngx_http_core_run_phases(r); // Continue processing
 
@@ -334,6 +343,12 @@
  static void ngx_http_sleep_cleanup_handler(void *data)
  {
      ngx_http_sleep_ctx_t *ctx = data; // Cast data to context
+
+     /* Prevent race conditions with double cleanup */
+     if (ctx->cleaned_up) {
+         return; // Already cleaned up, avoid double cleanup
+     }
+     ctx->cleaned_up = 1; // Mark as cleaned up
 
      ngx_log_error(NGX_LOG_NOTICE, ctx->request->connection->log, 0,
                    "request terminated, cleaning up sleep context"); // Log cleanup
