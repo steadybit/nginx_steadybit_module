@@ -201,8 +201,8 @@
      /* Get the main HTTP configuration */
      cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module); // Get main conf
 
-     /* Register our handler in the ACCESS phase (before content generation) */
-     h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers); // Add handler to phase
+     /* Register our handler in the REWRITE phase (before rewrite directives) */
+     h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers); // Add handler to phase
      if (h == NULL) {
          return NGX_ERROR; // Error if push fails
      }
@@ -326,8 +326,9 @@
 
      /* Timer has already fired, so no need to delete it */
      
-     /* Resume normal HTTP request processing from where we left off */
-     ngx_http_core_run_phases(r); // Continue processing
+     /* Resume normal HTTP request processing from the beginning */
+     r->phase_handler = 0; // Reset to start
+    ngx_http_core_run_phases(r); // Continue processing
 
      /* Decrement reference count (matches increment in sleep_handler) */
      r->main->count--; // Allow cleanup if needed
