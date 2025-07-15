@@ -198,6 +198,12 @@ http {
         sb_block \$should_block1 \$block_status1;
         sb_block \$should_block2 \$block_status2;
 
+        set \$my_sleep_duration 0;
+        if (\$request_uri ~* /sleep-variable-500ms) {
+            set \$my_sleep_duration 500;
+        }
+        sb_sleep_ms \$my_sleep_duration;
+
         # Root location - no sleep
         location = / {
             add_header Content-Type text/plain;
@@ -282,6 +288,12 @@ http {
             sb_block 1 510;
             add_header Content-Type text/plain;
             return 200 "Location with mixed multiple directives\\n";
+        }
+
+        # Test sb_sleep_ms with variable parameter
+        location = /sleep-variable-500ms {
+            add_header Content-Type text/plain;
+            return 200 "Variable sleep test (should delay 500ms)\n";
         }
     }
 }
@@ -444,6 +456,9 @@ echo "--- Location-level multiple directive tests ---"
 test_endpoint "/location-multiple-sleep" 300  # 200ms + 300ms = 300ms
 test_endpoint_status "/location-multiple-block" 0 508  # First block directive should trigger (508 vs 509)
 test_endpoint_status "/location-mixed-multiple" 200 510  # 100ms + 200ms = 200ms delay, then block with 510
+
+echo "--- Variable parameter test ---"
+test_endpoint "/sleep-variable-500ms" 500
 
 # Check Nginx logs
 echo ""

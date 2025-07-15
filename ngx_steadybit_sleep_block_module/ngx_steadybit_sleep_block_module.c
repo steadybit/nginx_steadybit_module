@@ -315,11 +315,16 @@
          ngx_http_complex_value_t *delays = slcf->sleep_ms_values->elts;
          for (i = 0; i < slcf->sleep_ms_values->nelts; i++) {
              if (ngx_http_complex_value(r, &delays[i], &val) != NGX_OK) {
+                 ngx_log_error(NGX_LOG_WARN, r->connection->log, 0, "sb_sleep_ms: failed to evaluate complex value");
                  continue;
              }
              if (val.len > 0) {
                  ngx_int_t sleep_time = ngx_atoi(val.data, val.len);
-                 if (sleep_time != NGX_ERROR && sleep_time > max_sleep) {
+                 if (sleep_time == NGX_ERROR) {
+                     ngx_log_error(NGX_LOG_WARN, r->connection->log, 0, "sb_sleep_ms: invalid sleep value '%V'", &val);
+                     continue;
+                 }
+                 if (sleep_time > max_sleep) {
                      max_sleep = sleep_time;
                  }
              }
