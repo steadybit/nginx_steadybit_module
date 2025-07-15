@@ -285,7 +285,21 @@
      ngx_flag_t should_block = 0;
      ngx_int_t block_status = 503;
      ngx_str_t val;
+     
+     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                   "steadybit sleep handler called for URI: %V", &r->uri);
+     
      slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_block_module);
+     
+     if (!slcf) {
+         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                       "steadybit sleep handler: failed to get location config");
+         return NGX_DECLINED;
+     }
+     
+     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                   "steadybit sleep handler: sleep_ms_values count: %d", 
+                   slcf->sleep_ms_values ? (int)slcf->sleep_ms_values->nelts : -1);
      // Evaluate all block conditions, block on first match
      if (slcf->block_conditions && slcf->block_conditions->nelts > 0) {
          ngx_http_complex_value_t *conds = slcf->block_conditions->elts;
@@ -320,6 +334,8 @@
              }
              if (val.len > 0) {
                  ngx_int_t sleep_time = ngx_atoi(val.data, val.len);
+                 ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                               "sb_sleep_ms: evaluated value '%V' -> %d", &val, sleep_time);
                  if (sleep_time == NGX_ERROR) {
                      ngx_log_error(NGX_LOG_WARN, r->connection->log, 0, "sb_sleep_ms: invalid sleep value '%V'", &val);
                      continue;
@@ -327,6 +343,9 @@
                  if (sleep_time > max_sleep) {
                      max_sleep = sleep_time;
                  }
+             } else {
+                 ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                               "sb_sleep_ms: empty value (len=0)");
              }
          }
      }
@@ -392,6 +411,10 @@
          r->main->count++;
          return NGX_DONE;
      }
+     
+     ngx_log_error(NGX_LOG_INFO, r->connection->log, 0,
+                   "steadybit sleep handler: no action taken (max_sleep=%d, should_block=%d)", 
+                   max_sleep, should_block);
      return NGX_DECLINED;
  }
 
