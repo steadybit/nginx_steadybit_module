@@ -12,24 +12,24 @@ RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2
 
 COPY --from=nginxsrc /usr/local/nginx/sbin/nginx /tmp/controller-nginx
 
-COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
-COPY ngx_steadybit_sleep_module/config /tmp/
+COPY ngx_steadybit_sleep_block_module/ngx_steadybit_sleep_block_module.c /tmp/
+COPY ngx_steadybit_sleep_block_module/config /tmp/
 
 RUN set -eux; \
     cd /tmp; \
     wget http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz; \
     tar -xzf nginx-${NGINX_VERSION}.tar.gz; \
-    cp ngx_steadybit_sleep_module.c config nginx-${NGINX_VERSION}/src/http/modules/; \
+    cp ngx_steadybit_sleep_block_module.c config nginx-${NGINX_VERSION}/src/http/modules/; \
     cd nginx-${NGINX_VERSION}; \
     ./configure --with-compat --add-dynamic-module=src/http/modules; \
     make modules; \
-    cp objs/ngx_steadybit_sleep_module.so /tmp/; \
+    cp objs/ngx_steadybit_sleep_block_module.so /tmp/; \
     curl -fsSL https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-${BASE_TAG}/rootfs/etc/nginx/template/nginx.tmpl -o /tmp/nginx.tmpl; \
-    echo 'load_module /etc/nginx/modules/ngx_steadybit_sleep_module.so;' | cat - /tmp/nginx.tmpl > /tmp/nginx.tmpl.patched
+    echo 'load_module /etc/nginx/modules/ngx_steadybit_sleep_block_module.so;' | cat - /tmp/nginx.tmpl > /tmp/nginx.tmpl.patched
 
 # Stage 2: Community Ingress
 FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
-COPY --from=builder /tmp/ngx_steadybit_sleep_module.so /etc/nginx/modules/
+COPY --from=builder /tmp/ngx_steadybit_sleep_block_module.so /etc/nginx/modules/
 COPY --from=builder /tmp/nginx.tmpl.patched /etc/nginx/template/nginx.tmpl
 ENV NGINX_TEMPLATE_PATH=/etc/nginx/template/nginx.tmpl
 

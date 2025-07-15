@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Run module tests
         run: |
-          cd ngx_steadybit_sleep_module
+          cd ngx_steadybit_sleep_block_module
           bash test-sleep-module.sh
 
   build-ubi:

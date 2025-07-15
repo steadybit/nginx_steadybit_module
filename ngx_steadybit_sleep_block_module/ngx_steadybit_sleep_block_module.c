@@ -80,7 +80,7 @@
   *
   * Defines the module's lifecycle hooks and configuration management functions.
   */
- static ngx_http_module_t ngx_steadybit_sleep_module_ctx = {
+ static ngx_http_module_t ngx_steadybit_sleep_block_module_ctx = {
      NULL,                          /* preconfiguration - called before config parsing */
      ngx_http_sleep_init,           /* postconfiguration - called after config parsing */
      NULL,                          /* create main configuration */
@@ -96,9 +96,9 @@
   *
   * This is the primary module structure that nginx uses to identify and load the module.
   */
- ngx_module_t ngx_steadybit_sleep_module = {
+ ngx_module_t ngx_steadybit_sleep_block_module = {
      NGX_MODULE_V1, // Module version macro
-     &ngx_steadybit_sleep_module_ctx,    /* module context */
+     &ngx_steadybit_sleep_block_module_ctx,    /* module context */
      ngx_http_sleep_commands,       /* module directives */
      NGX_HTTP_MODULE,               /* module type */
      NULL,                          /* init master */
@@ -292,7 +292,7 @@
      ngx_int_t                   block_status = 503; // Default status
      ngx_flag_t                  should_block = 0;
 
-     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
+     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_block_module);
 
      // Evaluate block condition if set
      if (slcf->block != NULL) {
@@ -318,7 +318,7 @@
 
      // If we should block and sleep_ms is also set, perform sleep first, then block
      if (should_block && slcf->sleep_ms != NULL) {
-         ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module);
+         ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_block_module);
          if (ctx != NULL) {
              // After sleep, block
              ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
@@ -359,7 +359,7 @@
          ctx->request = r;
          ctx->cleaned_up = 0;
          ctx->saved_phase_handler = r->phase_handler;
-         ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
+         ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_block_module);
          ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
          if (cln == NULL) {
              return NGX_ERROR;
@@ -389,7 +389,7 @@
      if (slcf->sleep_ms == NULL) {
          return NGX_DECLINED;
      }
-     ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module);
+     ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_block_module);
      if (ctx != NULL) {
          return NGX_DECLINED;
      }
@@ -415,7 +415,7 @@
      ctx->request = r;
      ctx->cleaned_up = 0;
      ctx->saved_phase_handler = r->phase_handler;
-     ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
+     ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_block_module);
      ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
      if (cln == NULL) {
          return NGX_ERROR;
@@ -455,7 +455,7 @@
      if (r == NULL) {
          return;
      }
-     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
+     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_block_module);
      // After sleep, check if we should block
      if (slcf->block != NULL) {
          if (ngx_http_complex_value(r, slcf->block, &block_val) == NGX_OK && block_val.len > 0) {

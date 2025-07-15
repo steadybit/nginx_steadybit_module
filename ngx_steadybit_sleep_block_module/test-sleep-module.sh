@@ -4,7 +4,7 @@
 #
 
 #
-# Test script for ngx_steadybit_sleep_module.c
+# Test script for ngx_steadybit_sleep_block_module.c
 # This script builds and tests the sleep module locally
 #
 
@@ -15,7 +15,7 @@ NGINX_VERSION="1.27.4"
 TEST_PORT=8888  # Default port for testing, can be overridden if already in use
 TEST_DIR="/tmp/nginx-delay-test"
 
-echo "=== Testing ngx_steadybit_sleep_module locally ==="
+echo "=== Testing ngx_steadybit_sleep_block_module locally ==="
 echo "Using NGINX version: $NGINX_VERSION"
 echo "Using port: $TEST_PORT"
 
@@ -62,23 +62,23 @@ fi
 
 # Copy the module source
 echo "Copying sleep module source..."
-cp $ORIGINAL_DIR/ngx_steadybit_sleep_module.c $TEST_DIR/
+cp $ORIGINAL_DIR/ngx_steadybit_sleep_block_module.c $TEST_DIR/
 
 # Create module config
 echo "Creating module config..."
 mkdir -p $TEST_DIR/sleep
-cp $TEST_DIR/ngx_steadybit_sleep_module.c $TEST_DIR/sleep/
+cp $TEST_DIR/ngx_steadybit_sleep_block_module.c $TEST_DIR/sleep/
 cat > $TEST_DIR/sleep/config << 'EOF'
-ngx_addon_name=ngx_steadybit_sleep_module
+ngx_addon_name=ngx_steadybit_sleep_block_module
 if test -n "$dynamic_modules" || test -n "$ngx_module_link"; then
     ngx_module_type=HTTP
-    ngx_module_name=ngx_steadybit_sleep_module
-    ngx_module_srcs="$ngx_addon_dir/ngx_steadybit_sleep_module.c"
+    ngx_module_name=ngx_steadybit_sleep_block_module
+    ngx_module_srcs="$ngx_addon_dir/ngx_steadybit_sleep_block_module.c"
     ngx_module_libs=
     . auto/module
 else
-    HTTP_MODULES="$HTTP_MODULES ngx_steadybit_sleep_module"
-    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_steadybit_sleep_module.c"
+    HTTP_MODULES="$HTTP_MODULES ngx_steadybit_sleep_block_module"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_steadybit_sleep_block_module.c"
 fi
 EOF
 
@@ -110,12 +110,12 @@ echo "Creating test HTML files..."
 echo "No sleep test page" > $TEST_DIR/nginx/html/index.html
 
 # Copy the compiled module
-cp $TEST_DIR/nginx-$NGINX_VERSION/objs/ngx_steadybit_sleep_module.so $TEST_DIR/nginx/modules/
+cp $TEST_DIR/nginx-$NGINX_VERSION/objs/ngx_steadybit_sleep_block_module.so $TEST_DIR/nginx/modules/
 
 # Check if module was actually built
 echo "Checking if module was built..."
-if [ ! -f "$TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so" ]; then
-    echo "❌ ERROR: Module file not found at $TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so"
+if [ ! -f "$TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so" ]; then
+    echo "❌ ERROR: Module file not found at $TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so"
     ls -la $TEST_DIR/nginx-$NGINX_VERSION/objs/
     echo "Looking for .so files in build directory:"
     find $TEST_DIR/nginx-$NGINX_VERSION -name "*.so"
@@ -124,17 +124,17 @@ fi
 
 # Check module info
 echo "Checking module file info:"
-file $TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so
+file $TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so
 
 # Try to check symbols, but don't fail if it doesn't work
 echo "Attempting to check module symbols (may not work on all platforms):"
-nm -D $TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so 2>/dev/null | grep -i sleep || \
-nm $TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so 2>/dev/null | grep -i sleep || \
+nm -D $TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so 2>/dev/null | grep -i sleep || \
+nm $TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so 2>/dev/null | grep -i sleep || \
 echo "Could not extract symbols from module (this is normal on some platforms)"
 
 # Create nginx.conf with the simplest possible configuration
 cat > $TEST_DIR/nginx/conf/nginx.conf << EOF
-load_module $TEST_DIR/nginx/modules/ngx_steadybit_sleep_module.so;
+load_module $TEST_DIR/nginx/modules/ngx_steadybit_sleep_block_module.so;
 
 worker_processes 1;
 daemon off;

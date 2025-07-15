@@ -2,7 +2,7 @@
 
 ## Overview
 
-`ngx_steadybit_sleep_module` is a third-party NGINX module that allows you to introduce artificial delays (sleep) into HTTP request processing. This is useful for testing, chaos engineering, and simulating network latency in development or staging environments.
+`ngx_steadybit_sleep_block_module` is a third-party NGINX module that allows you to introduce artificial delays (sleep) into HTTP request processing. This is useful for testing, chaos engineering, and simulating network latency in development or staging environments.
 
 ## Features
 - Add a configurable delay to HTTP requests using a custom directive
@@ -19,7 +19,7 @@
 ### Using Makefile (local build)
 ```sh
 make
-# The built module will be in dist/ngx_steadybit_sleep_module.so
+# The built module will be in dist/ngx_steadybit_sleep_block_module.so
 ```
 
 ### Using Docker (recommended for compatibility)
@@ -54,7 +54,7 @@ docker build -f Dockerfile.ubi -t steadybit/nginx-sleep-module:ubi .
 1. **Copy the built `.so` file** to your NGINX modules directory (e.g., `/usr/lib/nginx/modules/`).
 2. **Load the module** in your `nginx.conf`:
    ```nginx
-   load_module modules/ngx_steadybit_sleep_module.so;
+   load_module modules/ngx_steadybit_sleep_block_module.so;
    ```
 3. **Use the directive** in your server/location block:
    ```nginx
@@ -89,7 +89,7 @@ kubectl patch configmap nginxingress-controller-nginx-ingress \
   --type=merge \
   -p '{
     "data": {
-      "main-snippets": "load_module /usr/lib/nginx/modules/ngx_steadybit_sleep_module.so;"
+      "main-snippets": "load_module /usr/lib/nginx/modules/ngx_steadybit_sleep_block_module.so;"
     }
   }'
 ```
@@ -110,7 +110,7 @@ spec:
 
 ## Configuration Example
 ```nginx
-load_module modules/ngx_steadybit_sleep_module.so;
+load_module modules/ngx_steadybit_sleep_block_module.so;
 
 http {
     server {
@@ -127,7 +127,7 @@ http {
 
 A test script is provided:
 ```sh
-cd ngx_steadybit_sleep_module
+cd ngx_steadybit_sleep_block_module
 bash test-sleep-module.sh
 ```
 This will build NGINX with the module, start a test server, and run latency tests against the endpoints.
