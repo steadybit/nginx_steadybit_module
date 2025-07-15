@@ -57,17 +57,17 @@
   * Module Commands Configuration
   *
   * Defines the "sb_sleep_ms" and "sb_block" directives that can be used in nginx configuration.
-  * Both directives accept one or more parameters and can be used in main, server, or location context.
+  * Both directives accept one or more parameters and can be used in main, server, location, or if context.
   */
  static ngx_command_t ngx_http_sleep_commands[] = {
      { ngx_string("sb_sleep_ms"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE1,
        ngx_http_sleep_set,
        NGX_HTTP_LOC_CONF_OFFSET,
        offsetof(ngx_http_sleep_loc_conf_t, sleep_ms_values),
        NULL },
      { ngx_string("sb_block"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_LIF_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
        ngx_http_block_set,
        NGX_HTTP_LOC_CONF_OFFSET,
        0,
@@ -258,7 +258,7 @@
      /* Get the main HTTP configuration */
      cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module); // Get main conf
 
-     /* Register our handler in the REWRITE phase (before rewrite directives) */
+     /* Register our handler in the REWRITE phase */
      h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers); // Add handler to phase
      if (h == NULL) {
          return NGX_ERROR; // Error if push fails
