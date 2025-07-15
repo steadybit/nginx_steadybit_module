@@ -290,10 +290,11 @@
      ngx_str_t                   block_val;
      ngx_str_t                   block_status_val;
      ngx_int_t                   block_status = 503; // Default status
+     ngx_flag_t                  should_block = 0;
 
      slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
 
-     // 1. Check for block condition
+     // Evaluate block condition if set
      if (slcf->block != NULL) {
          if (ngx_http_complex_value(r, slcf->block, &block_val) != NGX_OK) {
              return NGX_ERROR;
@@ -301,6 +302,7 @@
          if (block_val.len > 0) {
              ngx_int_t block = ngx_atoi(block_val.data, block_val.len);
              if (block != NGX_ERROR && block != 0) {
+                 should_block = 1;
                  // Evaluate status code if provided
                  if (slcf->block_status != NULL) {
                      if (ngx_http_complex_value(r, slcf->block_status, &block_status_val) == NGX_OK && block_status_val.len > 0) {
@@ -310,15 +312,80 @@
                          }
                      }
                  }
-                 ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
-                               "blocking request with status %i due to sb_block", block_status);
-                 r->headers_out.status = block_status;
-                 return block_status;
              }
          }
      }
 
-     // 2. Sleep logic (as before)
+     // If we should block and sleep_ms is also set, perform sleep first, then block
+     if (should_block && slcf->sleep_ms != NULL) {
+         ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module);
+         if (ctx != NULL) {
+             // After sleep, block
+             ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                           "finished sleeping, now blocking with status %i due to sb_block", block_status);
+             r->headers_out.status = block_status;
+             return block_status;
+         }
+         // Evaluate sleep time
+         if (ngx_http_complex_value(r, slcf->sleep_ms, &val) != NGX_OK) {
+             return NGX_ERROR;
+         }
+         if (val.len == 0) {
+             // No sleep, block immediately
+             ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                           "no sleep_ms value, blocking with status %i due to sb_block", block_status);
+             r->headers_out.status = block_status;
+             return block_status;
+         }
+         sleep_time = ngx_atoi(val.data, val.len);
+         if (sleep_time == NGX_ERROR || sleep_time < 0) {
+             ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                           "invalid sb_sleep_ms value \"%V\"", &val);
+             r->headers_out.status = block_status;
+             return block_status;
+         }
+         if (sleep_time == 0) {
+             // No sleep, block immediately
+             ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                           "sleep_ms is 0, blocking with status %i due to sb_block", block_status);
+             r->headers_out.status = block_status;
+             return block_status;
+         }
+         // Start async sleep, then block
+         ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_sleep_ctx_t));
+         if (ctx == NULL) {
+             return NGX_ERROR;
+         }
+         ctx->request = r;
+         ctx->cleaned_up = 0;
+         ctx->saved_phase_handler = r->phase_handler;
+         ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module);
+         ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
+         if (cln == NULL) {
+             return NGX_ERROR;
+         }
+         cln->handler = ngx_http_sleep_cleanup_handler;
+         cln->data = ctx;
+         ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                       "sleeping (async) for %i ms before blocking", sleep_time);
+         ngx_memzero(&ctx->sleep_event, sizeof(ngx_event_t));
+         ctx->sleep_event.handler = ngx_http_sleep_wake_handler;
+         ctx->sleep_event.data = ctx;
+         ctx->sleep_event.log = r->connection->log;
+         ngx_add_timer(&ctx->sleep_event, (ngx_msec_t)sleep_time);
+         r->main->count++;
+         return NGX_DONE;
+     }
+
+     // If we should block and no sleep, block immediately
+     if (should_block) {
+         ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                       "blocking request with status %i due to sb_block", block_status);
+         r->headers_out.status = block_status;
+         return block_status;
+     }
+
+     // Sleep logic (as before)
      if (slcf->sleep_ms == NULL) {
          return NGX_DECLINED;
      }
@@ -374,30 +441,48 @@
   */
  static void ngx_http_sleep_wake_handler(ngx_event_t *ev)
  {
-     ngx_http_sleep_ctx_t *ctx = ev->data;      /* Get context from event data */
+     ngx_http_sleep_ctx_t *ctx = ev->data;
      ngx_http_request_t *r;
+     ngx_http_sleep_loc_conf_t *slcf;
+     ngx_str_t block_val;
+     ngx_str_t block_status_val;
+     ngx_int_t block_status = 503;
 
-     /* Add null checks for safety */
      if (ctx == NULL) {
          return;
      }
-
      r = ctx->request;
      if (r == NULL) {
          return;
      }
-
+     slcf = ngx_http_get_module_loc_conf(r, ngx_steadybit_sleep_module);
+     // After sleep, check if we should block
+     if (slcf->block != NULL) {
+         if (ngx_http_complex_value(r, slcf->block, &block_val) == NGX_OK && block_val.len > 0) {
+             ngx_int_t block = ngx_atoi(block_val.data, block_val.len);
+             if (block != NGX_ERROR && block != 0) {
+                 if (slcf->block_status != NULL) {
+                     if (ngx_http_complex_value(r, slcf->block_status, &block_status_val) == NGX_OK && block_status_val.len > 0) {
+                         ngx_int_t status = ngx_atoi(block_status_val.data, block_status_val.len);
+                         if (status > 0) {
+                             block_status = status;
+                         }
+                     }
+                 }
+                 ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                               "finished sleeping (async), now blocking with status %i due to sb_block", block_status);
+                 r->headers_out.status = block_status;
+                 ngx_http_finalize_request(r, block_status);
+                 r->main->count--;
+                 return;
+             }
+         }
+     }
      ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
-                   "finished sleeping (async)"); // Log wake-up
-
-     /* Timer has already fired, so no need to delete it */
-
-     /* Resume normal HTTP request processing from next handler */
-     r->phase_handler = ctx->saved_phase_handler + 1; // Move to next handler
-     ngx_http_core_run_phases(r); // Continue processing
-
-     /* Decrement reference count (matches increment in sleep_handler) */
-     r->main->count--; // Allow cleanup if needed
+                   "finished sleeping (async)");
+     r->phase_handler = ctx->saved_phase_handler + 1;
+     ngx_http_core_run_phases(r);
+     r->main->count--;
  }
 
  /**
