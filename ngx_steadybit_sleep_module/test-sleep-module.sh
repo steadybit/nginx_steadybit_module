@@ -170,23 +170,18 @@ http {
         }
         sb_sleep_ms \$sleep_ms_duration;
 
-        # Server-level block only for /server-block-test
-        set \$sb_should_block 0;
+        # Combine all block conditions into a single variable
+        set \$should_block 0;
+        set \$block_status 503;
         if (\$request_uri ~* /server-block-test) {
-            set \$sb_should_block 1;
+            set \$should_block 1;
+            set \$block_status 505;
         }
-        if (\$sb_should_block = 1) {
-            return 503;
-        }
-
-        # Combined server-level block for /products/parallel (after sleep)
-        set \$combined_should_block 0;
         if (\$request_uri ~* /products/parallel) {
-            set \$combined_should_block 1;
+            set \$should_block 1;
+            set \$block_status 502;
         }
-        if (\$combined_should_block = 1) {
-            return 502;
-        }
+        sb_block \$should_block \$block_status;
 
         # Root location - no sleep
         location = / {
@@ -382,7 +377,7 @@ test_endpoint "/sleep-500ms" 500
 test_endpoint "/sleep-1s" 1000
 test_endpoint_status "/sleep-and-block" 500 507
 test_endpoint "/server-delay-test" 500
-test_endpoint_status "/server-block-test" 0 503
+test_endpoint_status "/server-block-test" 0 505
 test_endpoint_status "/products/parallel" 500 502
 
 # Check Nginx logs
