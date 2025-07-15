@@ -160,28 +160,43 @@ http {
         listen $TEST_PORT;
         server_name localhost;
 
-        # Single server-level sleep directive for all paths
-        set \$sleep_ms_duration 0;
+        # Multiple server-level sleep directives for different paths
+        set \$sleep_ms_duration1 0;
+        set \$sleep_ms_duration2 0;
         if (\$request_uri ~* /server-delay-test) {
-            set \$sleep_ms_duration 500;
+            set \$sleep_ms_duration1 300;
+            set \$sleep_ms_duration2 200;
         }
         if (\$request_uri ~* /products/parallel) {
-            set \$sleep_ms_duration 500;
+            set \$sleep_ms_duration1 250;
+            set \$sleep_ms_duration2 250;
         }
-        sb_sleep_ms \$sleep_ms_duration;
+        if (\$request_uri ~* /multiple-sleep-test) {
+            set \$sleep_ms_duration1 150;
+            set \$sleep_ms_duration2 100;
+        }
+        sb_sleep_ms \$sleep_ms_duration1;
+        sb_sleep_ms \$sleep_ms_duration2;
 
-        # Combine all block conditions into a single variable
-        set \$should_block 0;
-        set \$block_status 503;
+        # Multiple block conditions with different statuses
+        set \$should_block1 0;
+        set \$should_block2 0;
+        set \$block_status1 503;
+        set \$block_status2 504;
         if (\$request_uri ~* /server-block-test) {
-            set \$should_block 1;
-            set \$block_status 505;
+            set \$should_block1 1;
+            set \$block_status1 505;
         }
         if (\$request_uri ~* /products/parallel) {
-            set \$should_block 1;
-            set \$block_status 502;
+            set \$should_block1 1;
+            set \$block_status1 502;
         }
-        sb_block \$should_block \$block_status;
+        if (\$request_uri ~* /multiple-block-test) {
+            set \$should_block2 1;
+            set \$block_status2 507;
+        }
+        sb_block \$should_block1 \$block_status1;
+        sb_block \$should_block2 \$block_status2;
 
         # Root location - no sleep
         location = / {
@@ -229,6 +244,44 @@ http {
         location = /products/parallel {
             add_header Content-Type text/plain;
             return 200 "This should be delayed and blocked at server level\\n";
+        }
+
+        # Test endpoint for multiple sleep directives
+        location = /multiple-sleep-test {
+            add_header Content-Type text/plain;
+            return 200 "Multiple sleep test (150ms + 100ms = 250ms total)\\n";
+        }
+
+        # Test endpoint for multiple block directives
+        location = /multiple-block-test {
+            add_header Content-Type text/plain;
+            return 200 "Multiple block test\\n";
+        }
+
+        # Test location with multiple sb_sleep_ms directives
+        location = /location-multiple-sleep {
+            sb_sleep_ms 200;
+            sb_sleep_ms 300;
+            add_header Content-Type text/plain;
+            return 200 "Location with multiple sleep directives (200ms + 300ms = 500ms)\\n";
+        }
+
+        # Test location with multiple sb_block directives
+        location = /location-multiple-block {
+            sb_block 1 508;
+            sb_block 1 509;
+            add_header Content-Type text/plain;
+            return 200 "Location with multiple block directives\\n";
+        }
+
+        # Test location with mixed multiple directives
+        location = /location-mixed-multiple {
+            sb_sleep_ms 100;
+            sb_block 0 503;
+            sb_sleep_ms 200;
+            sb_block 1 510;
+            add_header Content-Type text/plain;
+            return 200 "Location with mixed multiple directives\\n";
         }
     }
 }
@@ -371,14 +424,26 @@ FAILED=0
 # Run tests
 echo ""
 echo "=== Running tests ==="
+echo "--- Basic single directive tests ---"
 test_endpoint "/" 0
 test_endpoint "/sleep-100ms" 100
 test_endpoint "/sleep-500ms" 500
 test_endpoint "/sleep-1s" 1000
 test_endpoint_status "/sleep-and-block" 500 507
-test_endpoint "/server-delay-test" 500
-test_endpoint_status "/server-block-test" 0 505
-test_endpoint_status "/products/parallel" 500 502
+
+echo ""
+echo "--- Server-level multiple directive tests ---"
+test_endpoint "/server-delay-test" 300  # 300ms + 200ms = 300ms
+test_endpoint_status "/server-block-test" 0 505  # First block directive should trigger
+test_endpoint_status "/products/parallel" 250 502  # 250ms + 250ms = 250ms delay, then block with 502
+test_endpoint "/multiple-sleep-test" 150  # 150ms + 100ms = 150ms
+test_endpoint_status "/multiple-block-test" 0 507  # Second block directive should trigger
+
+echo ""
+echo "--- Location-level multiple directive tests ---"
+test_endpoint "/location-multiple-sleep" 300  # 200ms + 300ms = 300ms
+test_endpoint_status "/location-multiple-block" 0 508  # First block directive should trigger (508 vs 509)
+test_endpoint_status "/location-mixed-multiple" 200 510  # 100ms + 200ms = 200ms delay, then block with 510
 
 # Check Nginx logs
 echo ""
