@@ -69,13 +69,13 @@ static ngx_int_t ngx_http_block_if_request_handler(ngx_http_request_t *r);
   */
  static ngx_command_t ngx_http_sleep_commands[] = {
      { ngx_string("sb_sleep_ms"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE1,
+       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE1,
        ngx_http_sleep_ms_handler,
        NGX_HTTP_LOC_CONF_OFFSET,
        0,
        NULL },
      { ngx_string("sb_block"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
+       NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
        ngx_http_block_handler,
        NGX_HTTP_LOC_CONF_OFFSET,
        0,
