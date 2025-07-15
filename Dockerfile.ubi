@@ -1,4 +1,4 @@
-# Stage 1: Build im UBI-Image
+# Stage 1: Build in a UBI-compatible image (not an official Red Hat image)
 ARG NGINX_INGRESS_TAG=5.0.0-ubi
 FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
 

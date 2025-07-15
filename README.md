@@ -7,11 +7,11 @@
 ## Features
 - Add a configurable delay to HTTP requests using a custom directive
 - Supports millisecond granularity
-- Designed for use with NGINX and NGINX Ingress (Red Hat UBI)
+- Designed for use with NGINX and NGINX Ingress (based on UBI-compatible images)
 
 ## Requirements
 - NGINX (built from source, or compatible with dynamic modules)
-- Compatible with NGINX Ingress images based on Red Hat UBI (e.g., `nginx/nginx-ingress:5.0.0-ubi`)
+- Compatible with NGINX Ingress images based on UBI-compatible images (e.g., `nginx/nginx-ingress:5.0.0-ubi`). This is not an official Red Hat image.
 - GCC, make, and standard build tools (for building the module)
 
 ## Build Instructions
@@ -41,7 +41,7 @@ Builds the module using Red Hat Universal Base Image (UBI) with NGINX. This is s
 - Enterprise environments
 - Red Hat-based deployments
 - OpenShift deployments
-- NGINX Ingress Controller based on UBI images (e.g., `nginx/nginx-ingress:5.0.0-ubi`)
+- NGINX Ingress Controller based on UBI-compatible images (e.g., `nginx/nginx-ingress:5.0.0-ubi`). This is not an official Red Hat image.
 
 ```sh
 docker build -f Dockerfile.ubi -t steadybit/nginx-sleep-module:ubi .
@@ -140,10 +140,14 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 This module depends on:
 - **NGINX core** (licensed under the 2-clause BSD license)
-- **Red Hat Universal Base Image (UBI)** (subject to the Red Hat UBI End User License Agreement)
+- **Universal Base Image (UBI-compatible)** (subject to the Red Hat UBI End User License Agreement; this image is not provided or endorsed by Red Hat)
 
 Please refer to the respective license texts for details:
 - [NGINX License](https://www.nginx.com/resources/legal)
 - [Red Hat UBI EULA](https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI)
 
 The code in this repository is licensed under the terms described in [LICENSE](LICENSE).
+
+## Disclaimer
+
+This project and its container images are not affiliated with, endorsed by, or supported by Red Hat. The images are based on UBI-compatible images but are not official Red Hat images. Any references to UBI are for compatibility purposes only.
