@@ -35,12 +35,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Generate sanitized tag
+        id: tag
+        run: |
+          # Replace slashes with dashes for valid Docker tags
+          SANITIZED_TAG=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          echo "sanitized=$SANITIZED_TAG" >> $GITHUB_OUTPUT
       - name: Build UBI image
         run: |
           docker build \
             --build-arg NGINX_INGRESS_TAG=${{ matrix.tag }} \
             -f Dockerfile.ubi \
-            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }} .
+            -t ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.tag.outputs.sanitized }}-ubi-${{ matrix.tag }} .
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -50,13 +56,13 @@ jobs:
 
       - name: Push UBI image
         run: |
-          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }}
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.tag.outputs.sanitized }}-ubi-${{ matrix.tag }}
 
       - name: Tag and push default image for main branch
         if: github.ref == 'refs/heads/main' && matrix.tag == '5.0.0-ubi'
         run: |
-          docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }} ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
-          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}
+          docker tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.tag.outputs.sanitized }}-ubi-${{ matrix.tag }} ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.tag.outputs.sanitized }}
+          docker push ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.tag.outputs.sanitized }}
 
 
   build-community:
@@ -70,13 +76,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Generate sanitized tag
+        id: tag
+        run: |
+          # Replace slashes with dashes for valid Docker tags
+          SANITIZED_TAG=$(echo "${{ github.ref_name }}" | sed 's/\//-/g')
+          echo "sanitized=$SANITIZED_TAG" >> $GITHUB_OUTPUT
       - name: Build Community image
         run: |
           docker build \
             --build-arg BASE_TAG=${{ matrix.base_tag }} \
             --build-arg NGINX_VERSION=${{ matrix.nginx_version }} \
             -f Dockerfile.community \
-            -t ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ github.ref_name }}-community-${{ matrix.base_tag }} .
+            -t ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ steps.tag.outputs.sanitized }}-community-${{ matrix.base_tag }} .
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -86,4 +98,4 @@ jobs:
 
       - name: Push Community image
         run: |
-          docker push ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ github.ref_name }}-community-${{ matrix.base_tag }}
+          docker push ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ steps.tag.outputs.sanitized }}-community-${{ matrix.base_tag }}
