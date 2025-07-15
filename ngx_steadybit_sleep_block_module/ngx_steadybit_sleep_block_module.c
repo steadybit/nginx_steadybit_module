@@ -53,6 +53,14 @@
  static void ngx_http_sleep_wake_handler(ngx_event_t *ev); // Timer wake-up handler
  static void ngx_http_sleep_cleanup_handler(void *data); // Cleanup handler
 
+ // Handler prototypes for if-block support
+static char *ngx_http_sleep_ms_handler(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_block_handler(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+
+ // Forward declarations for per-request handlers
+static ngx_int_t ngx_http_sleep_ms_if_request_handler(ngx_http_request_t *r);
+static ngx_int_t ngx_http_block_if_request_handler(ngx_http_request_t *r);
+
  /**
   * Module Commands Configuration
   *
@@ -61,14 +69,14 @@
   */
  static ngx_command_t ngx_http_sleep_commands[] = {
      { ngx_string("sb_sleep_ms"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
-       ngx_http_sleep_set,
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE1,
+       ngx_http_sleep_ms_handler,
        NGX_HTTP_LOC_CONF_OFFSET,
-       offsetof(ngx_http_sleep_loc_conf_t, sleep_ms),
+       0,
        NULL },
      { ngx_string("sb_block"),
-       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
-       ngx_http_block_set,
+       NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_HTTP_SIF_CONF|NGX_CONF_TAKE12, /* 1 or 2 args */
+       ngx_http_block_handler,
        NGX_HTTP_LOC_CONF_OFFSET,
        0,
        NULL },
@@ -515,3 +523,93 @@
 
      /* Note: Context memory is automatically freed when request pool is destroyed */
  }
+
+ // Handler for sb_sleep_ms supporting both config and if block usage
+static char *
+ngx_http_sleep_ms_handler(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_str_t *value = cf->args->elts;
+    if (cf->cmd_type & NGX_HTTP_SIF_CONF) {
+        // In if block: register a per-request handler
+        ngx_http_core_loc_conf_t *clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+        clcf->handler = ngx_http_sleep_ms_if_request_handler;
+        // Save the value for use at request time
+        clcf->name = value[1];
+        return NGX_CONF_OK;
+    }
+    // Fallback to config setter for non-if usage
+    return ngx_http_sleep_set(cf, cmd, conf);
+}
+
+// Handler for sb_block supporting both config and if block usage
+static char *
+ngx_http_block_handler(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_str_t *value = cf->args->elts;
+    if (cf->cmd_type & NGX_HTTP_SIF_CONF) {
+        // In if block: register a per-request handler
+        ngx_http_core_loc_conf_t *clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
+        clcf->handler = ngx_http_block_if_request_handler;
+        // Save the value for use at request time
+        clcf->name = value[1];
+        return NGX_CONF_OK;
+    }
+    // Fallback to config setter for non-if usage
+    return ngx_http_block_set(cf, cmd, conf);
+}
+
+// Per-request handler for sb_sleep_ms in if block
+static ngx_int_t ngx_http_sleep_ms_if_request_handler(ngx_http_request_t *r)
+{
+    ngx_http_core_loc_conf_t *clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+    ngx_str_t val = clcf->name;
+    ngx_int_t sleep_time = ngx_atoi(val.data, val.len);
+    if (sleep_time == NGX_ERROR || sleep_time < 0) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "invalid sb_sleep_ms value '%V' in if block", &val);
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    if (sleep_time == 0) {
+        return NGX_OK;
+    }
+    ngx_http_sleep_ctx_t *ctx = ngx_pcalloc(r->pool, sizeof(ngx_http_sleep_ctx_t));
+    if (ctx == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    ctx->request = r;
+    ctx->cleaned_up = 0;
+    ctx->saved_phase_handler = r->phase_handler;
+    ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_block_module);
+    ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
+    if (cln == NULL) {
+        return NGX_HTTP_INTERNAL_SERVER_ERROR;
+    }
+    cln->handler = ngx_http_sleep_cleanup_handler;
+    cln->data = ctx;
+    ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                  "sleeping (async) for %i ms (if block)", sleep_time);
+    ngx_memzero(&ctx->sleep_event, sizeof(ngx_event_t));
+    ctx->sleep_event.handler = ngx_http_sleep_wake_handler;
+    ctx->sleep_event.data = ctx;
+    ctx->sleep_event.log = r->connection->log;
+    ngx_add_timer(&ctx->sleep_event, (ngx_msec_t)sleep_time);
+    r->main->count++;
+    return NGX_DONE;
+}
+
+// Per-request handler for sb_block in if block
+static ngx_int_t ngx_http_block_if_request_handler(ngx_http_request_t *r)
+{
+    ngx_http_core_loc_conf_t *clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+    ngx_str_t block_val = clcf->name;
+    ngx_int_t block = ngx_atoi(block_val.data, block_val.len);
+    ngx_int_t block_status = 503;
+    if (block != NGX_ERROR && block != 0) {
+        ngx_log_error(NGX_LOG_NOTICE, r->connection->log, 0,
+                      "blocking request with status %i due to sb_block in if block", block_status);
+        r->headers_out.status = block_status;
+        ngx_http_finalize_request(r, block_status);
+        return NGX_DONE;
+    }
+    return NGX_OK;
+}
