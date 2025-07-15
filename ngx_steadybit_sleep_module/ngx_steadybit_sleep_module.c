@@ -38,6 +38,7 @@
      ngx_http_request_t *request; /* Reference to the HTTP request */
      ngx_flag_t  waiting;         /* Flag indicating if request is currently waiting */
      ngx_flag_t  cleaned_up;      /* Flag indicating if context has been cleaned up */
+     ngx_int_t   saved_phase_handler; /* Saved phase handler to continue from */
  } ngx_http_sleep_ctx_t;
 
  /* Function prototypes - these functions implement the module's core functionality */
@@ -201,8 +202,8 @@
      /* Get the main HTTP configuration */
      cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module); // Get main conf
 
-     /* Register our handler in the ACCESS phase (before content generation) */
-     h = ngx_array_push(&cmcf->phases[NGX_HTTP_ACCESS_PHASE].handlers); // Add handler to phase
+     /* Register our handler in the REWRITE phase (before rewrite directives) */
+     h = ngx_array_push(&cmcf->phases[NGX_HTTP_REWRITE_PHASE].handlers); // Add handler to phase
      if (h == NULL) {
          return NGX_ERROR; // Error if push fails
      }
@@ -215,7 +216,7 @@
  /**
   * Main Request Handler
   *
-  * This function is called for each HTTP request during the ACCESS phase.
+  * This function is called for each HTTP request during the REWRITE phase.
   * It checks if sleep is configured, evaluates the sleep duration, and
   * initiates asynchronous sleeping if needed.
   */
@@ -271,6 +272,7 @@
     }
     ctx->request = r; // Store request pointer
     ctx->cleaned_up = 0; // Initialize cleanup flag
+    ctx->saved_phase_handler = r->phase_handler; // Save current phase handler
     ngx_http_set_ctx(r, ctx, ngx_steadybit_sleep_module); // Set context for request
 
     /* Register cleanup handler to prevent memory leaks if request terminates early */
@@ -325,8 +327,9 @@
                    "finished sleeping (async)"); // Log wake-up
 
      /* Timer has already fired, so no need to delete it */
-     
-     /* Resume normal HTTP request processing from where we left off */
+
+     /* Resume normal HTTP request processing from next handler */
+     r->phase_handler = ctx->saved_phase_handler + 1; // Move to next handler
      ngx_http_core_run_phases(r); // Continue processing
 
      /* Decrement reference count (matches increment in sleep_handler) */

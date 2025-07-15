@@ -160,6 +160,34 @@ http {
         listen $TEST_PORT;
         server_name localhost;
 
+        # Single server-level sleep directive for all paths
+        set \$sleep_ms_duration 0;
+        if (\$request_uri ~* /server-delay-test) {
+            set \$sleep_ms_duration 500;
+        }
+        if (\$request_uri ~* /products/parallel) {
+            set \$sleep_ms_duration 500;
+        }
+        sb_sleep_ms \$sleep_ms_duration;
+
+        # Server-level block only for /server-block-test
+        set \$sb_should_block 0;
+        if (\$request_uri ~* /server-block-test) {
+            set \$sb_should_block 1;
+        }
+        if (\$sb_should_block = 1) {
+            return 503;
+        }
+
+        # Combined server-level block for /products/parallel (after sleep)
+        set \$combined_should_block 0;
+        if (\$request_uri ~* /products/parallel) {
+            set \$combined_should_block 1;
+        }
+        if (\$combined_should_block = 1) {
+            return 502;
+        }
+
         # Root location - no sleep
         location = / {
             add_header Content-Type text/plain;
@@ -182,6 +210,30 @@ http {
         location = /sleep-1s {
             sb_sleep_ms 1000;
             proxy_pass http://localhost:9000/;
+        }
+
+        # Test with 500ms sleep followed by 507 return
+        location = /sleep-and-block {
+            sb_sleep_ms 500;
+            return 507;
+        }
+
+        # Test endpoint for server-level delay only
+        location = /server-delay-test {
+            add_header Content-Type text/plain;
+            return 200 "Server-level delay test\n";
+        }
+
+        # Test endpoint for server-level block only
+        location = /server-block-test {
+            add_header Content-Type text/plain;
+            return 200 "Server-level block test\n";
+        }
+
+        # Test endpoint for server-level combined delay and block
+        location = /products/parallel {
+            add_header Content-Type text/plain;
+            return 200 "This should be delayed and blocked at server level\\n";
         }
     }
 }
@@ -254,6 +306,70 @@ test_endpoint() {
     fi
 }
 
+# Function to test endpoint that should return specific HTTP status code
+test_endpoint_status() {
+    endpoint=$1
+    expected_time=$2
+    expected_status=$3
+
+    echo ""
+    echo "Testing $endpoint (expected ~$expected_time ms, status $expected_status)..."
+    echo "Command: curl -v http://localhost:$TEST_PORT$endpoint"
+
+    # First get verbose output to debug connectivity
+    curl -v "http://localhost:$TEST_PORT$endpoint" 2>&1 | head -n 20
+
+    # Then measure timing and check status code
+    total_duration=0
+    num_requests=3
+    status_matches=0
+
+    for i in $(seq 1 $num_requests); do
+        start_time=$(date +%s.%N)
+        response=$(curl -s -w "%{http_code}" "http://localhost:$TEST_PORT$endpoint")
+        end_time=$(date +%s.%N)
+
+        # Extract status code (last 3 characters)
+        status_code="${response: -3}"
+
+        duration=$(echo "($end_time - $start_time) * 1000" | bc)
+        total_duration=$(echo "$total_duration + $duration" | bc)
+
+        if [ "$status_code" = "$expected_status" ]; then
+            status_matches=$((status_matches + 1))
+        fi
+
+        echo "Request $i took $duration ms, status: $status_code"
+    done
+
+    avg_duration=$(echo "scale=2; $total_duration / $num_requests" | bc)
+    echo "Average request took $avg_duration ms, status matched $status_matches/$num_requests times"
+
+    # Validate both timing and status
+    timing_ok=0
+    status_ok=0
+
+    if [ $(echo "$avg_duration >= $expected_time * 0.8" | bc) -eq 1 ]; then
+        timing_ok=1
+    fi
+
+    if [ "$status_matches" -eq "$num_requests" ]; then
+        status_ok=1
+    fi
+
+    if [ $timing_ok -eq 1 ] && [ $status_ok -eq 1 ]; then
+        echo "✅ Test passed! Average duration ($avg_duration ms) >= 80% of expected ($expected_time ms) and status $expected_status matched all requests"
+    else
+        if [ $timing_ok -eq 0 ]; then
+            echo "❌ Test failed! Average duration ($avg_duration ms) is less than 80% of expected time ($expected_time ms)"
+        fi
+        if [ $status_ok -eq 0 ]; then
+            echo "❌ Test failed! Status code $expected_status did not match all requests ($status_matches/$num_requests)"
+        fi
+        FAILED=1
+    fi
+}
+
 # Track overall test status
 FAILED=0
 
@@ -264,6 +380,10 @@ test_endpoint "/" 0
 test_endpoint "/sleep-100ms" 100
 test_endpoint "/sleep-500ms" 500
 test_endpoint "/sleep-1s" 1000
+test_endpoint_status "/sleep-and-block" 500 507
+test_endpoint "/server-delay-test" 500
+test_endpoint_status "/server-block-test" 0 503
+test_endpoint_status "/products/parallel" 500 502
 
 # Check Nginx logs
 echo ""
