@@ -160,6 +160,13 @@ http {
         listen $TEST_PORT;
         server_name localhost;
 
+        set \$sleep_ms_duration 0;
+        if (\$request_uri ~* /server-delay-test) {
+            set \$sleep_ms_duration 300;
+        }
+
+        sb_sleep_ms \$sleep_ms_duration;
+
         # Root location - no sleep
         location = / {
             add_header Content-Type text/plain;
@@ -181,6 +188,10 @@ http {
         # Test with 1s sleep
         location = /sleep-1s {
             sb_sleep_ms 1000;
+            proxy_pass http://localhost:9000/;
+        }
+
+        location = /server-delay-test {
             proxy_pass http://localhost:9000/;
         }
     }
@@ -264,6 +275,7 @@ test_endpoint "/" 0
 test_endpoint "/sleep-100ms" 100
 test_endpoint "/sleep-500ms" 500
 test_endpoint "/sleep-1s" 1000
+test_endpoint "/server-delay-test" 300
 
 # Check Nginx logs
 echo ""
