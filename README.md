@@ -43,6 +43,8 @@ Builds the module using Red Hat Universal Base Image (UBI) with NGINX. This is s
 - OpenShift deployments
 - NGINX Ingress Controller based on UBI images (e.g., `nginx/nginx-ingress:5.0.0-ubi`)
 
+**IMPORTANT DISCLAIMER**: This is a modified UBI image. It is not certified or supported by Red Hat, Inc. This modified image is distributed under the MIT License (see LICENSE file). The original Red Hat UBI End User License Agreement applies to the underlying UBI components (see UBI-EULA.pdf).
+
 ```sh
 docker build -f Dockerfile.ubi -t steadybit/nginx-sleep-module:ubi .
 ```
@@ -138,12 +140,17 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 
 ## License and Dependencies
 
+**IMPORTANT**: This project creates modified UBI images that are not certified or supported by Red Hat, Inc.
+
 This module depends on:
 - **NGINX core** (licensed under the 2-clause BSD license)
 - **Red Hat Universal Base Image (UBI)** (subject to the Red Hat UBI End User License Agreement)
 
+**Licensing Terms:**
+- This module and its modifications are distributed under the **MIT License** (see [LICENSE](LICENSE))
+- The underlying Red Hat UBI components remain subject to the **Red Hat UBI End User License Agreement** (see [UBI-EULA.pdf](UBI-EULA.pdf))
+- No Red Hat trademarks or logos are used in the modified images
+
 Please refer to the respective license texts for details:
 - [NGINX License](https://www.nginx.com/resources/legal)
-- [Red Hat UBI EULA](https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI)
-
-The code in this repository is licensed under the terms described in [LICENSE](LICENSE).
+- [Red Hat UBI EULA](https://www.redhat.com/en/about/red-hat-end-user-license-agreements#UBI) (also available locally as [UBI-EULA.pdf](UBI-EULA.pdf))

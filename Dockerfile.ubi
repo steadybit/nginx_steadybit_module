@@ -1,4 +1,7 @@
 # Stage 1: Build im UBI-Image
+# This Dockerfile creates a modified UBI image that is not certified or supported by Red Hat, Inc.
+# The underlying UBI components are subject to the Red Hat UBI EULA (see UBI-EULA.pdf)
+# This modified image is distributed under the MIT License (see LICENSE)
 ARG NGINX_INGRESS_TAG=5.0.0-ubi
 FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
 
@@ -24,6 +27,8 @@ RUN set -eux; \
 FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG}
 
 COPY --from=builder --chown=101:0 /tmp/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
+COPY UBI-EULA.pdf /usr/share/licenses/UBI-EULA.pdf
+COPY LICENSE /usr/share/licenses/LICENSE
 
 USER root
 RUN sed -i '1iload_module modules/ngx_steadybit_sleep_module.so;' /etc/nginx/nginx.conf
