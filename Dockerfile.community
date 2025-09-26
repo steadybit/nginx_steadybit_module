@@ -1,12 +1,15 @@
 # Stage 0: Get nginx binary from controller image
 ARG BASE_TAG=v1.13.0
 ARG NGINX_VERSION=1.27.1
-FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} AS nginxsrc
+FROM --platform=$TARGETPLATFORM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} AS nginxsrc
 
 # Stage 1: Build with Debian
-FROM debian:bullseye-slim AS builder
+FROM --platform=$TARGETPLATFORM debian:bullseye-slim AS builder
 ARG BASE_TAG
 ARG NGINX_VERSION
+ARG TARGETPLATFORM
+ARG TARGETARCH
+ARG TARGETOS
 
 RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev curl
 
@@ -28,8 +31,7 @@ RUN set -eux; \
     echo 'load_module /etc/nginx/modules/ngx_steadybit_sleep_module.so;' | cat - /tmp/nginx.tmpl > /tmp/nginx.tmpl.patched
 
 # Stage 2: Community Ingress
-FROM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
+FROM --platform=$TARGETPLATFORM registry.k8s.io/ingress-nginx/controller:${BASE_TAG}
 COPY --from=builder /tmp/ngx_steadybit_sleep_module.so /etc/nginx/modules/
 COPY --from=builder /tmp/nginx.tmpl.patched /etc/nginx/template/nginx.tmpl
 ENV NGINX_TEMPLATE_PATH=/etc/nginx/template/nginx.tmpl
-

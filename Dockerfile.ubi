@@ -3,7 +3,10 @@
 # The underlying UBI components are subject to the Red Hat UBI EULA (see UBI-EULA.pdf)
 # This modified image is distributed under the MIT License (see LICENSE)
 ARG NGINX_INGRESS_TAG=5.0.0-ubi
-FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
+FROM --platform=$TARGETPLATFORM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
+ARG TARGETPLATFORM
+ARG TARGETARCH
+ARG TARGETOS
 
 USER root
 RUN microdnf install -y gcc make wget tar pcre2-devel zlib-devel openssl-devel
@@ -24,7 +27,8 @@ RUN set -eux; \
     cp objs/ngx_steadybit_sleep_module.so /tmp/
 
 # Stage 2: Build the runtime image
-FROM nginx/nginx-ingress:${NGINX_INGRESS_TAG}
+FROM --platform=$TARGETPLATFORM nginx/nginx-ingress:${NGINX_INGRESS_TAG}
+ARG TARGETPLATFORM
 
 COPY --from=builder --chown=101:0 /tmp/ngx_steadybit_sleep_module.so /usr/lib/nginx/modules/
 COPY UBI-EULA.pdf /usr/share/licenses/UBI-EULA.pdf
