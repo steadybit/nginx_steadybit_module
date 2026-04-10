@@ -1,19 +1,14 @@
-# Stage 0: Get nginx binary from controller image
+# Stage 0: Get nginx binary and config from controller image
 ARG BASE_TAG=v1.13.0
 ARG NGINX_VERSION=1.27.1
 FROM --platform=$TARGETPLATFORM registry.k8s.io/ingress-nginx/controller:${BASE_TAG} AS nginxsrc
 
-# Stage 1: Build with Debian
-FROM --platform=$TARGETPLATFORM debian:bullseye-slim AS builder
+# Stage 1: Build on Alpine to match controller image toolchain
+FROM --platform=$TARGETPLATFORM alpine:3.21 AS builder
 ARG BASE_TAG
 ARG NGINX_VERSION
-ARG TARGETPLATFORM
-ARG TARGETARCH
-ARG TARGETOS
 
-RUN apt-get update && apt-get install -y gcc make wget tar libpcre3-dev libpcre2-dev zlib1g-dev libssl-dev curl
-
-COPY --from=nginxsrc /usr/local/nginx/sbin/nginx /tmp/controller-nginx
+RUN apk add --no-cache gcc make musl-dev pcre2-dev zlib-dev openssl-dev curl linux-headers
 
 COPY ngx_steadybit_sleep_module/ngx_steadybit_sleep_module.c /tmp/
 COPY ngx_steadybit_sleep_module/config /tmp/
