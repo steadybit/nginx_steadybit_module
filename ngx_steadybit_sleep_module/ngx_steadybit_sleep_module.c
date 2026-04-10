@@ -238,7 +238,10 @@
     /* Check if we already have a context (prevent re-processing) */
     ctx = ngx_http_get_module_ctx(r, ngx_steadybit_sleep_module); // Get context
     if (ctx != NULL) {
-        return NGX_DECLINED; // Already processed, continue
+        if (ctx->sleep_event.timer_set) {
+            return NGX_DONE; // Still sleeping, keep request paused
+        }
+        return NGX_DECLINED; // Sleep finished, continue
     }
 
     /* Evaluate the complex value to get the actual sleep duration */
