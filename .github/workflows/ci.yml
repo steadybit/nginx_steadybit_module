@@ -13,7 +13,7 @@ on:
       - 'main'
 
 env:
-  DEFAULT_NGINX_INGRESS_TAG: 5.4.2-ubi
+  DEFAULT_NGINX_INGRESS_TAG: 5.5.0-ubi
 
 permissions:
   contents: read
@@ -35,7 +35,7 @@ jobs:
     needs: test-module
     strategy:
       matrix:
-        tag: [ 5.4.2-ubi ]
+        tag: [ 5.5.0-ubi ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -61,7 +61,7 @@ jobs:
           tags: |
             ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }}
       - name: Tag and push default image for main branch
-        if: github.ref == 'refs/heads/main' && matrix.tag == '5.4.2-ubi'
+        if: github.ref == 'refs/heads/main' && matrix.tag == '5.5.0-ubi'
         run: |
           docker buildx imagetools create \
             --tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }} \
