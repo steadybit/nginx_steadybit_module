@@ -50,7 +50,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push UBI multi-arch image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           file: Dockerfile.ubi
@@ -89,7 +91,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push Community multi-arch image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: "false"
         with:
           context: .
           file: Dockerfile.community
