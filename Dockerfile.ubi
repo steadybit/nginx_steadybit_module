@@ -2,7 +2,7 @@
 # This Dockerfile creates a modified UBI image that is not certified or supported by Red Hat, Inc.
 # The underlying UBI components are subject to the Red Hat UBI EULA (see UBI-EULA.pdf)
 # This modified image is distributed under the MIT License (see LICENSE)
-ARG NGINX_INGRESS_TAG=5.5.0-ubi
+ARG NGINX_INGRESS_TAG=5.7.0-ubi
 FROM --platform=$TARGETPLATFORM nginx/nginx-ingress:${NGINX_INGRESS_TAG} AS builder
 ARG TARGETPLATFORM
 ARG TARGETARCH
