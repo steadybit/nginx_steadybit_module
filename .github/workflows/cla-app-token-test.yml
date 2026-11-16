@@ -1,0 +1,24 @@
+# Throwaway test, do not merge: both paths of the shared CLA workflow.
+name: "CLA app token test"
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cla-app-token-test.yml
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  app-token:
+    uses: steadybit/.github/.github/workflows/cla.yml@test/cla-app-token-2
+    secrets:
+      APP_PRIVATE_KEY: ${{ secrets.GH_APP_STEADYBIT_PRIVATE_KEY }}
+  personal-token:
+    needs: app-token
+    if: always()
+    uses: steadybit/.github/.github/workflows/cla.yml@test/cla-app-token-2
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN_USED_BY_CLA_FROM_ANSGAR }}
