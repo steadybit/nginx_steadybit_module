@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  DEFAULT_NGINX_INGRESS_TAG: 5.7.0-ubi
+  DEFAULT_NGINX_INGRESS_TAG: 5.8.1-ubi
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
     needs: test-module
     strategy:
       matrix:
-        tag: [ 5.7.0-ubi ]
+        tag: [ 5.8.1-ubi ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -50,6 +50,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute image tag
+        id: image-tag
+        env:
+          REF_NAME: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref_name }}
+        # A pull request's ref name is "<number>/merge" and branch names may contain
+        # slashes too; neither is a valid image tag.
+        run: echo "value=${REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
       - name: Build and push UBI multi-arch image
         uses: docker/build-push-action@v7
         env:
@@ -58,13 +65,14 @@ jobs:
           context: .
           file: Dockerfile.ubi
           platforms: linux/amd64,linux/arm64
-          push: true
+          # pull requests only verify that the image builds
+          push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             NGINX_INGRESS_TAG=${{ matrix.tag }}
           tags: |
-            ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }}-ubi-${{ matrix.tag }}
+            ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ steps.image-tag.outputs.value }}-ubi-${{ matrix.tag }}
       - name: Tag and push default image for main branch
-        if: github.ref == 'refs/heads/main' && matrix.tag == '5.7.0-ubi'
+        if: github.ref == 'refs/heads/main' && matrix.tag == '5.8.1-ubi'
         run: |
           docker buildx imagetools create \
             --tag ghcr.io/steadybit/nginx-ingress-with-steadybit-module:${{ github.ref_name }} \
@@ -91,6 +99,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Compute image tag
+        id: image-tag
+        env:
+          REF_NAME: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || github.ref_name }}
+        # A pull request's ref name is "<number>/merge" and branch names may contain
+        # slashes too; neither is a valid image tag.
+        run: echo "value=${REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
       - name: Build and push Community multi-arch image
         uses: docker/build-push-action@v7
         env:
@@ -99,9 +114,10 @@ jobs:
           context: .
           file: Dockerfile.community
           platforms: linux/amd64,linux/arm64
-          push: true
+          # pull requests only verify that the image builds
+          push: ${{ github.event_name != 'pull_request' }}
           build-args: |
             BASE_TAG=${{ matrix.base_tag }}
             NGINX_VERSION=${{ matrix.nginx_version }}
           tags: |
-            ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ github.ref_name }}-community-${{ matrix.base_tag }}
+            ghcr.io/steadybit/ingress-nginx-controller-with-steadybit-module:${{ steps.image-tag.outputs.value }}-community-${{ matrix.base_tag }}
